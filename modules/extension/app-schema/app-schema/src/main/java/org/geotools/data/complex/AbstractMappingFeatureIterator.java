@@ -35,6 +35,7 @@ import org.geotools.feature.type.ComplexFeatureTypeFactoryImpl;
 import org.geotools.filter.FilterFactoryImplNamespaceAware;
 import org.geotools.xlink.XLINK;
 import org.opengis.feature.Attribute;
+import org.opengis.feature.ComplexAttribute;
 import org.opengis.feature.Feature;
 import org.opengis.feature.FeatureFactory;
 import org.opengis.feature.type.AttributeDescriptor;
@@ -119,6 +120,11 @@ public abstract class AbstractMappingFeatureIterator implements IMappingFeatureI
      * True if hasNext has been called prior to calling next()
      */
     private boolean hasNextCalled = false;
+
+    /**
+     * If this iterator is for nested features, this is the attribute from parent feature that contains them. 
+     */
+	private Feature parentElement;
     
     public AbstractMappingFeatureIterator(AppSchemaDataAccess store, FeatureTypeMapping mapping,
             Query query) throws IOException {
@@ -160,6 +166,7 @@ public abstract class AbstractMappingFeatureIterator implements IMappingFeatureI
         xpathAttributeBuilder.setFeatureFactory(attf);
         initialiseSourceFeatures(mapping, unrolledQuery, query.getCoordinateSystemReproject());
         xpathAttributeBuilder.setFilterFactory(namespaceAwareFilterFactory);
+        xpathAttributeBuilder.setNamespace(namespaces);
     }
     
     //properties can only be set by constructor, before initialising source features 
@@ -227,6 +234,7 @@ public abstract class AbstractMappingFeatureIterator implements IMappingFeatureI
      * Closes the underlying FeatureIterator
      */
     public void close() {
+    	this.parentElement = null;
         closeSourceFeatures();
     }
 
@@ -286,7 +294,15 @@ public abstract class AbstractMappingFeatureIterator implements IMappingFeatureI
         
         setHasNextCalled(false);
                 
-        return next;
+        if (parentElement != null) {
+        	ArrayList<Feature> nestedFeatures = new ArrayList<Feature>();
+        	nestedFeatures.add(next);
+        	Feature parentElemCopy = parentElement;
+        	parentElemCopy.setValue(nestedFeatures);
+        	return parentElemCopy;
+        } else {
+            return next;
+        }
     }
     
     protected Map getClientProperties(Property attribute) throws DataSourceException {
@@ -411,4 +427,8 @@ public abstract class AbstractMappingFeatureIterator implements IMappingFeatureI
     protected abstract Feature computeNext() throws IOException;   
 
     public abstract boolean hasNext();
+
+	public void setParentElement(Feature parentElement) {
+		this.parentElement = parentElement;
+	}
 }

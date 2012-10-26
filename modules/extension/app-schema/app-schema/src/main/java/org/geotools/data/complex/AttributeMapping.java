@@ -17,14 +17,39 @@
 
 package org.geotools.data.complex;
 
+import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
+import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
 
+import javax.xml.namespace.QName;
+
+import org.geotools.data.complex.config.FeatureTypeRegistry;
+import org.geotools.data.complex.config.NonFeatureTypeProxy;
+import org.geotools.data.complex.filter.XPath;
+import org.geotools.data.complex.filter.XPath.Step;
 import org.geotools.data.complex.filter.XPath.StepList;
+import org.geotools.factory.CommonFactoryFinder;
+import org.geotools.feature.Types;
+import org.geotools.feature.type.AttributeDescriptorImpl;
+import org.geotools.feature.type.ComplexFeatureTypeFactoryImpl;
+import org.geotools.feature.type.GeometryTypeImpl;
+import org.geotools.feature.type.UniqueNameFeatureTypeFactoryImpl;
 import org.geotools.util.Utilities;
+import org.geotools.xs.XS;
+import org.geotools.xs.XSSchema;
+import org.opengis.feature.type.AttributeDescriptor;
 import org.opengis.feature.type.AttributeType;
+import org.opengis.feature.type.ComplexType;
+import org.opengis.feature.type.GeometryDescriptor;
+import org.opengis.feature.type.GeometryType;
 import org.opengis.feature.type.Name;
+import org.opengis.feature.type.PropertyDescriptor;
+import org.opengis.filter.FilterFactory;
 import org.opengis.filter.expression.Expression;
+import com.vividsolutions.jts.geom.Geometry;
 
 /**
  * @author Gabriel Roldan (Axios Engineering)
@@ -37,7 +62,6 @@ import org.opengis.filter.expression.Expression;
  * @since 2.4
  */
 public class AttributeMapping {
-
     /** Expression to set the Attribute's ID from, or {@linkplain Expression#NIL} */
     private Expression identifierExpression;
 
@@ -67,6 +91,7 @@ public class AttributeMapping {
 
     private String sourceIndex;
 
+	private List<AttributeDescriptor> descriptors;
     /**
      * Creates a new AttributeMapping object.
      * 
@@ -95,6 +120,7 @@ public class AttributeMapping {
         this.targetNodeInstance = targetNodeInstance;
         this.clientProperties = clientProperties == null ? Collections
                 .<Name, Expression> emptyMap() : clientProperties;
+
     }
 
     public boolean isMultiValued() {
@@ -159,17 +185,213 @@ public class AttributeMapping {
     
     public void setInstanceXpath(String instancePath) {
         this.instancePath = instancePath;
-    }
-    
-    public void setEncodeIfEmpty(boolean encodeIfEmpty) {
-        this.encodeIfEmpty = encodeIfEmpty;
-    }
+    }    
     
     public void setList(boolean isList) {
         this.isList = isList;
     }
     
     /********END specific web service methods*******************/
+
+    public void setEncodeIfEmpty(boolean encodeIfEmpty) {
+        this.encodeIfEmpty = encodeIfEmpty;
+    }
+    
+    /**
+     * Get base (non-collection) type of simple content.
+     * 
+     * @param type
+     * @return
+     */
+    static AttributeType getSimpleContentType(AttributeType type) {
+        Class<?> binding = type.getBinding();
+        if (binding == Collection.class) {
+            return getSimpleContentType(type.getSuper());
+        } else {
+            return type;
+        }
+    }
+    
+	public void setDescriptors(AttributeDescriptor parentDescriptor,
+			FilterFactory ff,
+			UniqueNameFeatureTypeFactoryImpl descriptorFactory,
+			Map<Name, AttributeType> elemToTargetNodeType) {
+		descriptors = new ArrayList<AttributeDescriptor>();
+
+		if (Types.equals(ComplexFeatureConstants.FEATURE_CHAINING_LINK_NAME,
+				targetXPath.get(0).getName())) {
+			descriptors.add(ComplexFeatureConstants.FEATURE_CHAINING_LINK);
+			return;
+		}
+
+		Name rootName = parentDescriptor.getName();
+		Step rootStep = targetXPath.get(0);
+		if (Types.equals(rootName, rootStep.getName())) {
+			// first step is the self reference to att, so skip it
+			if (targetXPath.size() > 1) {
+				targetXPath.remove(0);
+			} else {
+				// except when the xpath is the root itself
+				// where it is done for feature chaining for simple content
+				if (Types.isSimpleContentType(parentDescriptor.getType())) {
+					AttributeType simpleContentType = getSimpleContentType(parentDescriptor
+							.getType());
+					descriptors.add(new AttributeDescriptorImpl(
+							simpleContentType,
+							ComplexFeatureConstants.SIMPLE_CONTENT, 1, 1, true,
+							(Object) null));
+				} else if (Types.isGeometryType(parentDescriptor.getType())) {
+					ComplexFeatureTypeFactoryImpl typeFactory = new ComplexFeatureTypeFactoryImpl();
+					GeometryType geomType;
+					if (parentDescriptor.getType() instanceof GeometryType) {
+						geomType = (GeometryType) parentDescriptor.getType();
+					} else {
+						geomType = (GeometryType) ((NonFeatureTypeProxy) parentDescriptor
+								.getType()).getSubject();
+					}
+					GeometryDescriptor geomDescriptor = typeFactory
+							.createGeometryDescriptor(geomType, rootName,
+									parentDescriptor.getMinOccurs(),
+									parentDescriptor.getMaxOccurs(),
+									parentDescriptor.isNillable(),
+									parentDescriptor.getDefaultValue());
+					descriptors.add(geomDescriptor);
+				}
+				return;
+			}
+		}
+
+		Iterator stepsIterator = targetXPath.iterator();
+
+		AttributeDescriptor currStepDescriptor = null;
+
+		int stepIndex = 0;
+		while (stepsIterator.hasNext()) {
+			final XPath.Step currStep = (Step) stepsIterator.next();
+			final boolean isLastStep = !stepsIterator.hasNext();
+			final QName stepName = currStep.getName();
+			final Name attributeName = Types.toName(stepName);
+
+			final AttributeType _parentType = parentDescriptor.getType();
+
+			ComplexType parentType = (ComplexType) _parentType;
+
+			AttributeDescriptor actualDescriptor;
+			if (!isLastStep) {
+				if (null == attributeName.getNamespaceURI()) {
+					actualDescriptor = (AttributeDescriptor) Types
+							.findDescriptor(parentType,
+									attributeName.getLocalPart());
+				} else {
+					actualDescriptor = (AttributeDescriptor) Types
+							.findDescriptor(parentType, attributeName);
+				}
+
+				// check for any type
+				if (Types.equals(actualDescriptor.getType().getName(),
+						XS.ANYTYPE)) {
+					// find the castType from previous attribute mappings
+					// and override it
+					AttributeType castType = elemToTargetNodeType
+							.get(actualDescriptor.getName());
+					currStepDescriptor = descriptorFactory
+							.createAttributeDescriptor(castType, attributeName,
+									actualDescriptor.getMinOccurs(),
+									actualDescriptor.getMaxOccurs(),
+									actualDescriptor.isNillable(), null);
+				} else {
+					currStepDescriptor = actualDescriptor;
+				}
+		    
+			} else {
+				if (null == attributeName.getNamespaceURI()) {
+					actualDescriptor = (AttributeDescriptor) Types
+							.findDescriptor(parentType,
+									attributeName.getLocalPart());
+				} else {
+					actualDescriptor = (AttributeDescriptor) Types
+							.findDescriptor(parentType, attributeName);
+				}
+
+				if (targetNodeInstance == null) {
+					currStepDescriptor = actualDescriptor;
+				} else if (actualDescriptor != null) {
+					int minOccurs = actualDescriptor.getMinOccurs();
+					int maxOccurs = actualDescriptor.getMaxOccurs();
+					boolean nillable = actualDescriptor.isNillable();
+					if (actualDescriptor instanceof GeometryDescriptor) {
+						// important to maintain CRS information encoding
+						if (Geometry.class.isAssignableFrom(targetNodeInstance
+								.getBinding())) {
+							if (!(targetNodeInstance instanceof GeometryType)) {
+								targetNodeInstance = new GeometryTypeImpl(
+										targetNodeInstance.getName(),
+										targetNodeInstance.getBinding(),
+										((GeometryDescriptor) actualDescriptor)
+												.getCoordinateReferenceSystem(),
+										targetNodeInstance.isIdentified(),
+										targetNodeInstance.isAbstract(),
+										targetNodeInstance.getRestrictions(),
+										targetNodeInstance.getSuper(),
+										targetNodeInstance.getDescription());
+							}
+							currStepDescriptor = descriptorFactory
+									.createGeometryDescriptor(
+											(GeometryType) targetNodeInstance,
+											attributeName, minOccurs,
+											maxOccurs, nillable, null);
+						} else {
+							throw new IllegalArgumentException(
+									"Can't set targetNodeType: "
+											+ targetNodeInstance.toString()
+											+ " for attribute mapping: "
+											+ attributeName
+											+ " as it is not a Geometry type!");
+						}
+					} else {
+						currStepDescriptor = descriptorFactory
+								.createAttributeDescriptor(targetNodeInstance,
+										attributeName, minOccurs, maxOccurs,
+										nillable, null);
+					}
+				}
+
+				if (currStepDescriptor == null) {
+
+					if (isLastStep) {
+						// reached the leaf
+						throw new IllegalArgumentException(currStep
+								+ " is not a valid location path for type "
+								+ _parentType.getName());
+					}
+					StringBuffer parentAtts = new StringBuffer();
+					Collection properties = parentType.getDescriptors();
+					for (Iterator it = properties.iterator(); it.hasNext();) {
+						PropertyDescriptor desc = (PropertyDescriptor) it
+								.next();
+						Name name = desc.getName();
+						parentAtts.append(name.getNamespaceURI());
+						parentAtts.append("#");
+						parentAtts.append(name.getLocalPart());
+						if (it.hasNext()) {
+							parentAtts.append(", ");
+						}
+					}
+					throw new IllegalArgumentException(currStep
+							+ " is not a valid location path for type "
+							+ _parentType.getName() + ". " + currStep + " ns: "
+							+ currStep.getName().getNamespaceURI() + ", "
+							+ _parentType.getName().getLocalPart()
+							+ " properties: " + parentAtts);
+				}
+			}
+
+			descriptors.add(currStepDescriptor);
+			parentDescriptor = currStepDescriptor;
+			stepIndex++;
+		}
+
+	}
     
     @Override
     public boolean equals(Object o) {
@@ -222,6 +444,10 @@ public class AttributeMapping {
 
     public void setIdentifierExpression(Expression identifierExpression) {
         this.identifierExpression = identifierExpression;
+    }
+    
+    public List<AttributeDescriptor> getDescriptors() {
+    	return this.descriptors;
     }
 
 }

@@ -367,7 +367,7 @@ public class XmlMappingFeatureIterator extends DataAccessMappingFeatureIterator 
             
             Attribute subFeature = xpathAttributeBuilder.set(target,
                     sl, null, featureId, attMapping.getTargetNodeInstance(), false, attMapping
-                            .getSourceExpression());
+                            .getSourceExpression(), attMapping.getDescriptors());
 //            Attribute subFeature = setAttributeValue(parentAttribute.getAttribute(), featureId,
 //                    null, attMapping, null, sl, null);
             

@@ -26,6 +26,7 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
 import org.geotools.data.DataAccess;
 import org.geotools.data.DataAccessFinder;
@@ -235,10 +236,14 @@ public class FeatureChainingTest extends AppSchemaTestSupport {
             for (Property property : nestedGuFeatures) {
                 Object value = property.getValue();
                 assertNotNull(value);
-                assertTrue(value instanceof Collection);
-                assertEquals(1, ((Collection) value).size());
+                assertTrue(value instanceof List);
+                assertEquals(((List) value).size(), 1);
 
-                Feature nestedGuFeature = (Feature) ((Collection) value).iterator().next();
+                Object valIterator = ((List)value).get(0);
+                assertTrue(valIterator instanceof Iterator);
+                
+                Feature nestedGuFeature = (Feature) ((Iterator)valIterator).next();
+                assertTrue(!((Iterator) valIterator).hasNext());
                 /**
                  * Test geological unit
                  */
@@ -265,11 +270,18 @@ public class FeatureChainingTest extends AppSchemaTestSupport {
                 for (Property cpProperty : nestedCpFeatures) {
                     Object cpPropertyValue = cpProperty.getValue();
                     assertNotNull(cpPropertyValue);
-                    assertTrue(cpPropertyValue instanceof Collection);
-                    assertEquals(1, ((Collection) cpPropertyValue).size());
+                    assertTrue(cpPropertyValue instanceof List);
+                    assertEquals(1, ((List) cpPropertyValue).size());
+                    
+                    valIterator = ((List) cpPropertyValue).get(0);
+                    
+                    assertTrue(valIterator instanceof Iterator);                    
 
-                    Feature nestedCpFeature = (Feature) ((Collection) cpPropertyValue).iterator()
+                    Feature nestedCpFeature = (Feature) ((Iterator)valIterator)
                             .next();
+
+                    assertTrue(!((Iterator) valIterator).hasNext());
+                    
                     // make sure each of the nested compositional part feature is valid
                     cpId = nestedCpFeature.getIdentifier().toString();
                     assertTrue(cpMap.containsKey(cpId));

@@ -28,6 +28,8 @@ import org.geotools.feature.FeatureCollection;
 import org.geotools.feature.FeatureIterator;
 import org.geotools.geometry.jts.ReferencedEnvelope;
 import org.geotools.util.NullProgressListener;
+import org.opengis.feature.Attribute;
+import org.opengis.feature.ComplexAttribute;
 import org.opengis.feature.Feature;
 import org.opengis.feature.FeatureVisitor;
 import org.opengis.feature.type.FeatureType;
@@ -368,5 +370,13 @@ public class MappingFeatureCollection implements FeatureCollection<FeatureType, 
     public Query getQuery() {
         return this.query;
     }
+
+	public NestedAttributeIterator iterator(ComplexAttribute nestedFeaturesElement) {
+		try {
+            return MappingFeatureIteratorFactory.getInstance(store, mapping, query, unrolledFilter, nestedFeaturesElement);
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+	}
 
 }
