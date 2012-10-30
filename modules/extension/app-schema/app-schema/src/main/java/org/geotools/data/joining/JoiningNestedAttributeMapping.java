@@ -388,6 +388,12 @@ public class JoiningNestedAttributeMapping extends NestedAttributeMapping {
                     "Internal error: nested source expression expected but found "
                             + featureTypeName);
         }
+        
+//        if (featureIterator != null) {
+//            while (featureIterator.hasNext() && featureIterator.checkForeignIdValues(idValues)) {
+//                matchingFeatures.add(featureIterator.next());
+//            }
+//        }
 
         // skip all others
 		for (Name name : instance.featureIterators.keySet()) {

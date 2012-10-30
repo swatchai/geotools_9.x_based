@@ -870,7 +870,10 @@ public class XPath {
     private Attribute setSimpleContentValue(Attribute attribute, Object value, AttributeDescriptor descriptor) {
         Property simpleContent = null;
         if (attribute instanceof ComplexAttribute) {
-        	simpleContent = ((ComplexAttribute)attribute).getProperty(ComplexFeatureConstants.SIMPLE_CONTENT);
+        	Collection values = ((ComplexAttribute)attribute).getValue();
+        	if (!values.isEmpty() && values.size() == 1) {
+          	    simpleContent = ((ComplexAttribute)attribute).getProperty(ComplexFeatureConstants.SIMPLE_CONTENT);
+        	}
         }
         if (simpleContent == null) {
             Collection<Property> contents = new ArrayList<Property>();
@@ -1061,7 +1064,7 @@ public class XPath {
         if (value != null) {
             if (value instanceof Collection) {
                 Collection list = (Collection) value;
-                if (!list.isEmpty()) {
+                if (!list.isEmpty() && list.size() == 1) {
                     Object f = list.iterator().next();
                     if (f instanceof Feature) {
                         Name featureName = ((Feature) f).getDescriptor().getName();
