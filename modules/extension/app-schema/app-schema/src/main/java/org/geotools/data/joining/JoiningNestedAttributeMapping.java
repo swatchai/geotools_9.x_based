@@ -18,7 +18,9 @@ package org.geotools.data.joining;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
@@ -30,13 +32,18 @@ import org.geotools.data.complex.DataAccessMappingFeatureIterator;
 import org.geotools.data.complex.DataAccessRegistry;
 import org.geotools.data.complex.FeatureTypeMapping;
 import org.geotools.data.complex.MappingFeatureCollection;
+import org.geotools.data.complex.MappingFeatureSource;
+import org.geotools.data.complex.NestedAttributeIterator;
 import org.geotools.data.complex.NestedAttributeMapping;
 import org.geotools.data.complex.filter.XPath.StepList;
 import org.geotools.factory.Hints;
 import org.geotools.feature.FeatureCollection;
 import org.geotools.feature.FeatureIterator;
 import org.geotools.jdbc.JoiningJDBCFeatureSource;
+import org.opengis.feature.Attribute;
+import org.opengis.feature.ComplexAttribute;
 import org.opengis.feature.Feature;
+import org.opengis.feature.type.FeatureType;
 import org.opengis.feature.type.Name;
 import org.opengis.filter.expression.Expression;
 import org.opengis.filter.expression.PropertyName;
@@ -104,7 +111,7 @@ public class JoiningNestedAttributeMapping extends NestedAttributeMapping {
 
     }
 
-    public List<Feature> getInputFeatures(Object foreignKeyValue, FeatureTypeMapping fMapping) {
+    public Iterator<Feature> getInputFeatures(Object foreignKeyValue, FeatureTypeMapping fMapping) {
         throw new UnsupportedOperationException(
                 "Internal error: Not Allowed to run this method for Joining Nested Attribute Mapping!");
     }
@@ -261,7 +268,7 @@ public class JoiningNestedAttributeMapping extends NestedAttributeMapping {
      * @throws IOException
      */
     @Override
-    public List<Feature> getInputFeatures(Object caller, Object foreignKeyValue,
+    public Iterator<Feature> getInputFeatures(Object caller, Object foreignKeyValue,
             List<Object> idValues, Object feature, CoordinateReferenceSystem reprojection,
             List<PropertyName> selectedProperties, boolean includeMandatory) throws IOException {
 
@@ -297,28 +304,39 @@ public class JoiningNestedAttributeMapping extends NestedAttributeMapping {
                             + featureTypeName);
         }
 
-        ArrayList<Feature> matchingFeatures = new ArrayList<Feature>();
-
         if (featureIterator != null) {
-            while (featureIterator.hasNext()
-                    && featureIterator.peekNextValue(nestedSourceExpression).toString()
-                            .equals(foreignKeyValue.toString())
-                    && featureIterator.checkForeignIdValues(idValues)) {
-                matchingFeatures.addAll(featureIterator.skip());
-            }
+
+            featureIterator.setGroupingForeignIds(idValues);
+            
+//            while (featureIterator.hasNext()
+//                    && featureIterator.peekNextValue(nestedSourceExpression).toString()
+//                            .equals(foreignKeyValue.toString())
+//                    && featureIterator.checkForeignIdValues(idValues)) {
+//                matchingFeatures.addAll(featureIterator.skip());
+//            }
         }
 
         // skip all others
         for (Name name : instance.featureIterators.keySet()) {
             DataAccessMappingFeatureIterator fIt = instance.featureIterators.get(name);
-            if (fIt != featureIterator) {
-                skipFeatures(fIt, instance.nestedSourceExpressions.get(name), foreignKeyValue,
-                        idValues);
+			if (fIt != featureIterator) {
+				if (foreignKeyValue instanceof Collection) {
+					Iterator fKeys = ((Collection) foreignKeyValue).iterator();
+					while (fKeys.hasNext()) {
+						skipFeatures(fIt,
+								instance.nestedSourceExpressions.get(name),
+								fKeys.next(), idValues);
+					}
+				} else {
+					skipFeatures(fIt,
+							instance.nestedSourceExpressions.get(name),
+							foreignKeyValue, idValues);
+				}
             }
         }
         instance.skipped.add(new Instance.Skip(idValues));
 
-        return matchingFeatures;
+        return featureIterator;
     }
 
     /**
@@ -333,9 +351,9 @@ public class JoiningNestedAttributeMapping extends NestedAttributeMapping {
      * @throws IOException
      */
     @Override
-    public List<Feature> getFeatures(Object caller, Object foreignKeyValue, List<Object> idValues,
+    public Iterator<? extends Attribute> getFeatures(Object caller, Object foreignKeyValue, List<Object> idValues,
             CoordinateReferenceSystem reprojection, Object feature,
-            List<PropertyName> selectedProperties, boolean includeMandatory) throws IOException {
+            List<PropertyName> selectedProperties, boolean includeMandatory, Attribute nestedFeaturesElement) throws IOException {
 
         if (isSameSource()) {
             // if linkField is null, this method shouldn't be called because the mapping
@@ -360,6 +378,9 @@ public class JoiningNestedAttributeMapping extends NestedAttributeMapping {
             featureIterator = initSourceFeatures(instance, (Name) featureTypeName, reprojection,
                     selectedProperties, includeMandatory);
         }
+		if (featureIterator != null) {
+			featureIterator.setGroupingForeignIds(idValues);
+		}
         Expression nestedSourceExpression = instance.nestedSourceExpressions
                 .get((Name) featureTypeName);
         if (nestedSourceExpression == null) {
@@ -367,26 +388,41 @@ public class JoiningNestedAttributeMapping extends NestedAttributeMapping {
                     "Internal error: nested source expression expected but found "
                             + featureTypeName);
         }
-
-        ArrayList<Feature> matchingFeatures = new ArrayList<Feature>();
-
-        if (featureIterator != null) {
-            while (featureIterator.hasNext() && featureIterator.checkForeignIdValues(idValues)) {
-                matchingFeatures.add(featureIterator.next());
-            }
-        }
+        
+//        if (featureIterator != null) {
+//            while (featureIterator.hasNext() && featureIterator.checkForeignIdValues(idValues)) {
+//                matchingFeatures.add(featureIterator.next());
+//            }
+//        }
 
         // skip all others
-        for (Name name : instance.featureIterators.keySet()) {
-            DataAccessMappingFeatureIterator fIt = instance.featureIterators.get(name);
-            if (fIt != featureIterator) {
-                skipFeatures(fIt, instance.nestedSourceExpressions.get(name), foreignKeyValue,
-                        idValues);
-            }
-        }
+		for (Name name : instance.featureIterators.keySet()) {
+			DataAccessMappingFeatureIterator fIt = instance.featureIterators
+					.get(name);
+			if (fIt != featureIterator) {
+				if (foreignKeyValue instanceof Collection) {
+					Iterator fKeys = ((Collection) foreignKeyValue).iterator();
+					while (fKeys.hasNext()) {
+						skipFeatures(fIt,
+								instance.nestedSourceExpressions.get(name),
+								fKeys.next(), idValues);
+					}
+				} else {
+					skipFeatures(fIt,
+							instance.nestedSourceExpressions.get(name),
+							foreignKeyValue, idValues);
+				}
+			}
+		}
         instance.skipped.add(new Instance.Skip(idValues));
 
-        return matchingFeatures;
+		if (nestedFeaturesElement != null) {
+			return new NestedAttributeIterator(featureIterator,
+					nestedFeaturesElement);
+		} else {
+			return featureIterator;
+		}
+        
     }
 
     protected void skipFeatures(DataAccessMappingFeatureIterator featureIterator,

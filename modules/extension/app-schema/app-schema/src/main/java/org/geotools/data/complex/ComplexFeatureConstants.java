@@ -26,6 +26,7 @@ import org.geotools.feature.type.AttributeDescriptorImpl;
 import org.geotools.feature.type.ComplexTypeImpl;
 import org.geotools.xlink.XLINK;
 import org.geotools.xs.XSSchema;
+import org.opengis.feature.type.AttributeDescriptor;
 import org.opengis.feature.type.ComplexType;
 import org.opengis.feature.type.Name;
 import org.opengis.feature.type.PropertyDescriptor;
@@ -52,8 +53,11 @@ public class ComplexFeatureConstants {
      * more than one instances to be used in one type that can be chained by different parent
      * feature types.
      */
-    public static final PropertyDescriptor FEATURE_CHAINING_LINK = new AttributeDescriptorImpl(
+    public static final AttributeDescriptor FEATURE_CHAINING_LINK = new AttributeDescriptorImpl(
             XSSchema.STRING_TYPE, FEATURE_CHAINING_LINK_NAME, 0, -1, true, null);
+    
+    public static final AttributeDescriptor NESTED_FEATURES_CONTAINER = new AttributeDescriptorImpl(
+            XSSchema.STRING_TYPE, new NameImpl("Nested_Features"), 0, -1, true, null);
 
     /**
      * Name representation of xlink:href

@@ -18,6 +18,7 @@
 package org.geotools.data.complex;
 
 import java.io.IOException;
+import java.util.Iterator;
 import java.util.List;
 import java.util.logging.Logger;
 
@@ -34,6 +35,9 @@ import org.geotools.filter.FilterCapabilities;
 import org.geotools.filter.visitor.DefaultFilterVisitor;
 import org.geotools.jdbc.JDBCFeatureSource;
 import org.geotools.jdbc.JDBCFeatureStore;
+import org.opengis.feature.Attribute;
+import org.opengis.feature.ComplexAttribute;
+import org.opengis.feature.Feature;
 import org.opengis.feature.type.AttributeDescriptor;
 import org.opengis.filter.Filter;
 import org.opengis.filter.expression.PropertyName;
@@ -247,5 +251,12 @@ public class MappingFeatureIteratorFactory {
         }
         return capabilities;
     }
+
+	public static NestedAttributeIterator getInstance(AppSchemaDataAccess store,
+			FeatureTypeMapping mapping, Query query, Filter unrolledFilter,
+			Attribute parentElement) throws IOException {
+		IMappingFeatureIterator iterator = getInstance(store, mapping, query, unrolledFilter);
+		return new NestedAttributeIterator(iterator, parentElement);
+	}
 
 }

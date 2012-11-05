@@ -25,6 +25,7 @@ import java.util.List;
 import org.geotools.data.Query;
 import org.geotools.data.store.ReprojectingIterator;
 import org.geotools.factory.FactoryRegistryException;
+import org.geotools.feature.FeatureIterator;
 import org.geotools.geometry.jts.GeometryCoordinateSequenceTransformer;
 import org.opengis.feature.Feature;
 import org.opengis.feature.simple.SimpleFeatureType;
@@ -48,8 +49,6 @@ import org.opengis.referencing.operation.OperationNotFoundException;
 public class FilteringMappingFeatureIterator extends DataAccessMappingFeatureIterator {
 
     private Filter filter;
-
-    private List<Feature> sources;
     
     private String currentFeatureId;
     
@@ -81,34 +80,27 @@ public class FilteringMappingFeatureIterator extends DataAccessMappingFeatureIte
     @Override
     protected void closeSourceFeatures() {
         super.closeSourceFeatures();
-        this.sources = null;
     }    
 
     @Override
     public boolean hasNext() {
-        if (sources != null) {
-            // this is called in the beginning of next()
-            // we don't want to actually check the source iterator again
-            return true;
-        }
-        List<Feature> groupedFeatures;
         // check that the feature exists
         boolean matches = false;
+        FeatureIterator groupedSources;
         while (!matches && super.hasNext()) {
-            sources = null;
             // get all rows with same id from denormalised views
             // and evaluate each row
             currentFeatureId = extractIdForFeature(curSrcFeature);
             try {
-                groupedFeatures = super.getSources(currentFeatureId);
-                Iterator<Feature> srcFeatures = groupedFeatures.iterator();
-                while (!matches && srcFeatures.hasNext()) {
+                groupedSources = super.getFilteredSources(currentFeatureId);
+                while (!matches && groupedSources.hasNext()) {
                     // apply filter
-                    if (filter == null || filter.evaluate(srcFeatures.next())) {
-                        sources = reprojectFeatures(groupedFeatures);
+                    if (filter == null || filter.evaluate(groupedSources.next())) {
+//                        sources = reprojectFeatures(groupedFeatures);
                         matches = true;
                     }
                 }
+                groupedSources.close();
             } catch (IOException e) {
                 close();
                 throw new RuntimeException(e);
@@ -117,55 +109,49 @@ public class FilteringMappingFeatureIterator extends DataAccessMappingFeatureIte
             setHasNextCalled(false);            
         }
         return matches;
+    }    
+    
+    @Override
+    protected FeatureIterator<? extends Feature> getSourceFeatureIterator() {
+    	try {
+			return super.getFilteredSources(currentFeatureId);
+		} catch (IOException e) {
+			throw new RuntimeException(e);
+		}
     }
     
-    /**
-     * Reproject source features if reprojection is set in the query. This has to be done after filtering, so 
-     * it's consistent with JDBCFeatureSource way of filtering and reprojection.
-     * @param srcFeatures
-     * @return
-     * @throws OperationNotFoundException
-     * @throws FactoryRegistryException
-     * @throws FactoryException
-     */
-    @SuppressWarnings("unchecked")
-    private List<Feature> reprojectFeatures(List<Feature> srcFeatures) {
-        if (targetCrs != null) {
-            List<Feature> features = new ArrayList<Feature>();
-            GeometryCoordinateSequenceTransformer transformer = new GeometryCoordinateSequenceTransformer();
-            Iterator<Feature> reprojectedFeatures;
-            try {
-                reprojectedFeatures = new ReprojectingIterator(srcFeatures.iterator(), mappedSource
-                        .getSchema().getCoordinateReferenceSystem(), targetCrs,
-                        (SimpleFeatureType) this.sourceFeatures.getSchema(), transformer);
-                while (reprojectedFeatures.hasNext()) {
-                    features.add(reprojectedFeatures.next());
-                }
-            } catch (Exception e) {
-                close();
-                throw new RuntimeException ("Failed to reproject features in app-schema!", e);
-            }
-            return features;
-        }
-        return srcFeatures;
-    }
+//    /**
+//     * Reproject source features if reprojection is set in the query. This has to be done after filtering, so 
+//     * it's consistent with JDBCFeatureSource way of filtering and reprojection.
+//     * @param srcFeatures
+//     * @return
+//     * @throws OperationNotFoundException
+//     * @throws FactoryRegistryException
+//     * @throws FactoryException
+//     */
+//    @SuppressWarnings("unchecked")
+//    private void reprojectFeatures(Iterator scFeatures) {
+//        if (targetCrs != null) {
+//            GeometryCoordinateSequenceTransformer transformer = new GeometryCoordinateSequenceTransformer();
+//            Iterator<Feature> reprojectedFeatures;
+//            try {
+//                reprojectedFeatures = new ReprojectingIterator(srcFeatures, mappedSource
+//                        .getSchema().getCoordinateReferenceSystem(), targetCrs,
+//                        (SimpleFeatureType) this.sourceFeatures.getSchema(), transformer);
+//                while (reprojectedFeatures.hasNext()) {
+//                    features.add(reprojectedFeatures.next());
+//                }
+//            } catch (Exception e) {
+//                close();
+//                throw new RuntimeException ("Failed to reproject features in app-schema!", e);
+//            }
+//            return features;
+//        }
+//        return srcFeatures;
+//    }
     
     @Override
     protected String getNextFeatureId() {
         return currentFeatureId;
-    }
-    
-    @Override
-    protected List<Feature> getSources(String id) throws IOException {
-        // return grouped source features
-        List<Feature> features;
-        if (sources != null) {
-            features = sources;
-            // reset for the next hasNext call
-            sources = null;
-        } else {
-            features = super.getSources(id);
-        } 
-        return features;
     }    
 }

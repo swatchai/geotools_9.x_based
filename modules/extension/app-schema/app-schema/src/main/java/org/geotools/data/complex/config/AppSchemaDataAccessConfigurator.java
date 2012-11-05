@@ -56,8 +56,10 @@ import org.geotools.data.complex.filter.XPath.Step;
 import org.geotools.data.complex.filter.XPath.StepList;
 import org.geotools.data.complex.xml.XmlFeatureSource;
 import org.geotools.data.joining.JoiningNestedAttributeMapping;
+import org.geotools.factory.CommonFactoryFinder;
 import org.geotools.factory.Hints;
 import org.geotools.feature.Types;
+import org.geotools.feature.type.UniqueNameFeatureTypeFactoryImpl;
 import org.geotools.filter.AttributeExpressionImpl;
 import org.geotools.filter.FilterFactoryImplReportInvalidProperty;
 import org.geotools.filter.expression.FeaturePropertyAccessorFactory;
@@ -309,6 +311,10 @@ public class AppSchemaDataAccessConfigurator {
             String itemXpath, CoordinateReferenceSystem crs) throws IOException {
         List attMappings = new LinkedList();
 
+        UniqueNameFeatureTypeFactoryImpl descriptorFactory = new UniqueNameFeatureTypeFactoryImpl();
+
+        Map<Name, AttributeType> elemToTargetNodeType = new HashMap<Name, AttributeType>();
+        
         for (Iterator it = attDtos.iterator(); it.hasNext();) {
 
             org.geotools.data.complex.config.AttributeMapping attDto;
@@ -393,11 +399,17 @@ public class AppSchemaDataAccessConfigurator {
                     attMapping = new NestedAttributeMapping(idExpression, sourceExpression,
                         targetXPathSteps, isMultiValued, clientProperties, elementExpr,
                         sourceFieldSteps, namespaces);
-                }
-                
+                }            
             } else {
                 attMapping = new AttributeMapping(idExpression, sourceExpression, attDto.getSourceIndex(), targetXPathSteps,
                         expectedInstanceOf, isMultiValued, clientProperties);
+            }
+
+            attMapping.setDescriptors(root, ff, descriptorFactory, elemToTargetNodeType); 
+            
+            if (expectedInstanceOf != null) {
+            	Name elemName = Types.toTypeName(targetXPathSteps.get(targetXPathSteps.size() - 1).getName());
+            	elemToTargetNodeType.put(elemName, expectedInstanceOf);
             }
             
             if (attDto.isList()) {
@@ -423,6 +435,8 @@ public class AppSchemaDataAccessConfigurator {
             
             attMappings.add(attMapping);
         }
+        elemToTargetNodeType = null;
+        
         return attMappings;
     }
 

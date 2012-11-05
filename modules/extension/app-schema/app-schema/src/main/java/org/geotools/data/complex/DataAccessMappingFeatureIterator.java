@@ -31,6 +31,7 @@ import java.util.Set;
 import javax.xml.namespace.QName;
 
 import org.apache.commons.lang.StringUtils;
+import org.eclipse.xsd.XSDElementDeclaration;
 import org.geotools.data.DataAccess;
 import org.geotools.data.DataSourceException;
 import org.geotools.data.FeatureSource;
@@ -64,6 +65,7 @@ import org.opengis.feature.type.FeatureType;
 import org.opengis.feature.type.GeometryDescriptor;
 import org.opengis.feature.type.GeometryType;
 import org.opengis.feature.type.Name;
+import org.opengis.feature.type.PropertyType;
 import org.opengis.filter.Filter;
 import org.opengis.feature.type.PropertyDescriptor;
 import org.opengis.filter.expression.Expression;
@@ -114,8 +116,6 @@ public class DataAccessMappingFeatureIterator extends AbstractMappingFeatureIter
     protected FeatureCollection<? extends FeatureType, ? extends Feature> sourceFeatures;
 
     protected List<Expression> foreignIds = null;
-    
-	protected AttributeDescriptor targetFeature;
 
     /**
      * True if joining is turned off and pre filter exists. There's a need to run extra query to get
@@ -128,11 +128,14 @@ public class DataAccessMappingFeatureIterator extends AbstractMappingFeatureIter
     /**
      * Temporary/experimental changes for enabling subsetting for isList only. 
      */
-    private Filter listFilter;
+    protected Filter listFilter;
+
+	private List<Object> groupingForeignIds;
 
     public DataAccessMappingFeatureIterator(AppSchemaDataAccess store, FeatureTypeMapping mapping,
-            Query query, boolean isFiltered) throws IOException {
-        this(store, mapping, query, null);
+            Query query, boolean isFiltered) throws IOException {  	
+
+    	this(store, mapping, query, null);
         this.isFiltered = isFiltered;
         if (isFiltered) {
             filteredFeatures = new ArrayList<String>();
@@ -215,9 +218,24 @@ public class DataAccessMappingFeatureIterator extends AbstractMappingFeatureIter
         }
 
         setHasNextCalled(true);
+        
+        if (this.groupingForeignIds != null && !checkForeignIdValues(groupingForeignIds)) {
+        	return false;
+        }
 
         return exists;
     }
+    
+//    public int size() {
+//    	// if already counted, return it
+//		if (size > -1) {
+//			return size;
+//		} else {
+//			// initiate otherwise
+//			
+//		}
+//		
+//    }
 
     protected FeatureIterator<? extends Feature> getSourceFeatureIterator() {
         return sourceFeatureIterator;
@@ -490,7 +508,7 @@ public class DataAccessMappingFeatureIterator extends AbstractMappingFeatureIter
                 } else if (mappingName instanceof String) {
                     // referential polymorphism mapping
                     return setPolymorphicReference((String) mappingName, clientPropsMappings, target,
-                            xpath, targetNodeType);
+                            xpath, targetNodeType, attMapping.getDescriptors());
                 }
             } else {
                 // polymorphism could result in null, to skip the attribute
@@ -500,108 +518,179 @@ public class DataAccessMappingFeatureIterator extends AbstractMappingFeatureIter
         if (values == null && source != null) {
             values = getValues(attMapping.isMultiValued(), sourceExpression, source);
         }
-        boolean isHRefLink = isByReference(clientPropsMappings, isNestedFeature);
+
+        Attribute instance = null;
         if (isNestedFeature) {
+
+            
+            boolean isHRefLink = isByReference(clientPropsMappings, isNestedFeature);
+        	Iterator<? extends Attribute> nestedFeatures = null;
+        
+        	//TODO: check for null, check for ComplexAttribute
+        	Attribute nestedFeaturesElement = null;
+
+			AttributeDescriptor attDescriptor = attMapping.getDescriptors()
+					.get(0);
+        	
+        	if (!isHRefLink) {
+        		nestedFeaturesElement = this.attf.createComplexAttribute(null, attDescriptor, id);
+			setClientProperties(nestedFeaturesElement, source,
+					clientPropsMappings);
+//			if (attMapping.encodeIfEmpty()) {
+//				nestedFeaturesElement.getDescriptor().getUserData()
+//						.put("encodeIfEmpty", true);
+//			}
+        	}
+			
             // get built feature based on link value
             if (values instanceof Collection) {
-                ArrayList<Attribute> nestedFeatures = new ArrayList<Attribute>(((Collection) values)
-                        .size());
-                for (Object val : (Collection) values) {
-                    if (val instanceof Attribute) {
-                        val = ((Attribute) val).getValue();
-                        if (val instanceof Collection) {
-                            val = ((Collection) val).iterator().next();
-                        }
-                        while (val instanceof Attribute) {
-                            val = ((Attribute) val).getValue();
-                        }
-                    }
+//                ArrayList<Attribute> nestedFeatures = new ArrayList<Attribute>(((Collection) values)
+//                        .size());
+//                for (Object val : (Collection) values) {
+//                    if (val instanceof Attribute) {
+//                        val = ((Attribute) val).getValue();
+//                        if (val instanceof Collection) {
+//                            val = ((Collection) val).iterator().next();
+//                        }
+//                        while (val instanceof Attribute) {
+//                            val = ((Attribute) val).getValue();
+//                        }
+//                    }
                     if (isHRefLink) {
                         // get the input features to avoid infinite loop in case the nested
                         // feature type also have a reference back to this type
                         // eg. gsml:GeologicUnit/gsml:occurence/gsml:MappedFeature
                         // and gsml:MappedFeature/gsml:specification/gsml:GeologicUnit
-                        nestedFeatures.addAll(((NestedAttributeMapping) attMapping)
-                                .getInputFeatures(this, val, getIdValues(source), source, reprojection, selectedProperties, includeMandatory));
+                    	nestedFeatures = ((NestedAttributeMapping) attMapping)
+                                .getInputFeatures(this, values, getIdValues(source), source, reprojection, selectedProperties, includeMandatory);
                     } else {
-                        nestedFeatures.addAll(((NestedAttributeMapping) attMapping).getFeatures(
-                                this, val, getIdValues(source), reprojection, source, selectedProperties, includeMandatory));
+                    	nestedFeatures = ((NestedAttributeMapping) attMapping).getFeatures(
+                                this, values, getIdValues(source), reprojection, source, selectedProperties, includeMandatory, nestedFeaturesElement);
                     }
-                }
-                values = nestedFeatures;
+//                }
             } else if (isHRefLink) {
                 // get the input features to avoid infinite loop in case the nested
                 // feature type also have a reference back to this type
                 // eg. gsml:GeologicUnit/gsml:occurence/gsml:MappedFeature
                 // and gsml:MappedFeature/gsml:specification/gsml:GeologicUnit
-                values = ((NestedAttributeMapping) attMapping).getInputFeatures(this, values, getIdValues(source), source, reprojection, selectedProperties, includeMandatory);
+            	nestedFeatures = ((NestedAttributeMapping) attMapping).getInputFeatures(this, values, getIdValues(source), source, reprojection, selectedProperties, includeMandatory);
             } else {
-                values = ((NestedAttributeMapping) attMapping).getFeatures(this, values, getIdValues(source), reprojection,
-                        source, selectedProperties, includeMandatory);
+            	nestedFeatures = ((NestedAttributeMapping) attMapping).getFeatures(this, values, getIdValues(source), reprojection,
+                        source, selectedProperties, includeMandatory, nestedFeaturesElement);
             }
+
             if (isHRefLink) {
                 // only need to set the href link value, not the nested feature properties
-                setXlinkReference(target, clientPropsMappings, values, xpath, targetNodeType);
+                setXlinkReference(target, clientPropsMappings, nestedFeatures, xpath, targetNodeType, attMapping.getDescriptors());
                 return null;
-            }
+            }            
+    
+			if (values == null) {
+				// polymorphism use case, if the value doesn't match anything,
+				// don't encode
+				return null;
+			}
+
+			if (attDescriptor.getMaxOccurs() == 1) {
+				// single value, evaluate now so the encoder can encode
+				// correctly, since it evaluates maxOccurs
+				// use while so it would close itself when it reaches the end
+				if (nestedFeatures.hasNext()) {
+					values = nestedFeatures.next();
+				}
+				if (nestedFeatures instanceof FeatureIterator) {
+  				    ((FeatureIterator) nestedFeatures).close();
+				}
+			} else {
+				// TODO: create special method
+				// TODO: fix the descriptor with correct type
+//				instance = this.attf.createComplexAttribute(value, descriptor, id)createAttribute(nestedFeatures,
+//						ComplexFeatureConstants.NESTED_FEATURES_CONTAINER, id);
+//				XSDElementDeclaration elemDecl = (XSDElementDeclaration) attDescriptor.getUserData()
+//						.get(XSDElementDeclaration.class);
+//				instance.getUserData().put(XSDElementDeclaration.class,
+//						elemDecl);
+//				// so it won't get skipped in cleanEmptyElements()
+//				instance.getDescriptor().getUserData()
+//						.put("encodeIfEmpty", true);
+//				Object existingValue = target.getValue();
+//				if (existingValue != null) {
+//					Collection existingProps = (Collection) existingValue;
+//					List newValue = new ArrayList();
+//		            newValue.addAll(existingProps);
+//		            newValue.add(instance);
+//		            target.setValue(newValue);
+//				}
+				instance = this.attf.createNestedAttribute(attDescriptor, id, (Iterator<ComplexAttribute>) nestedFeatures);
+				XSDElementDeclaration elemDecl = (XSDElementDeclaration) attDescriptor.getUserData()
+				.get(XSDElementDeclaration.class);
+		instance.getUserData().put(XSDElementDeclaration.class,
+				elemDecl);
+		// so it won't get skipped in cleanEmptyElements()
+		instance.getDescriptor().getUserData()
+				.put("encodeIfEmpty", true);
+		Object existingValue = target.getValue();
+		if (existingValue != null) {
+			Collection existingProps = (Collection) existingValue;
+			List newValue = new ArrayList();
+            newValue.addAll(existingProps);
+            newValue.add(instance);
+            target.setValue(newValue);
+		}
+			}
         }
-        if (isNestedFeature) {
-            if (values == null) {
-                // polymorphism use case, if the value doesn't match anything, don't encode
-                return null;
-            }
-        }
-        Attribute instance = null;
-        if (values instanceof Collection) {
+//        if (values instanceof Collection) {
             // nested feature type could have multiple instances as the whole purpose
             // of feature chaining is to cater for multi-valued properties
-            for (Object singleVal : (Collection) values) {
-                ArrayList valueList = new ArrayList();
+//            for (Object singleVal : (Collection) values) {
+//                ArrayList valueList = new ArrayList();
                 // copy client properties from input features if they're complex features
                 // wrapped in app-schema data access
-                if (singleVal instanceof Attribute) {
-                    // copy client properties from input features if they're complex features
-                    // wrapped in app-schema data access
-                    Map<Name, Expression> valueProperties = getClientProperties((Attribute) singleVal);
-                    if (!valueProperties.isEmpty()) {
-                        clientPropsMappings.putAll(valueProperties);
-                    }
-                }
-                if (!isNestedFeature) {
-                    if (singleVal instanceof Attribute) {
-                        singleVal = ((Attribute) singleVal).getValue();
-                    }
-                    if (singleVal instanceof Collection) {
-                        valueList.addAll((Collection) singleVal);
-                    } else {
-                        valueList.add(singleVal);
-                    }
-                } else {
-                    valueList.add(singleVal);
-                }
-                instance = xpathAttributeBuilder.set(target, xpath, valueList, id,
-                        targetNodeType, false, sourceExpression);
-                setClientProperties(instance, source, clientPropsMappings);
-            }
-        } else {
-            if (values instanceof Attribute) {
-                // copy client properties from input features if they're complex features
-                // wrapped in app-schema data access
-                Map<Name, Expression> newClientProps = getClientProperties((Attribute) values);
-                if (!newClientProps.isEmpty()) {
-                    newClientProps.putAll(clientPropsMappings);
-                    clientPropsMappings = newClientProps;
-                }
-                values = ((Attribute) values).getValue();
-            }
-            instance = xpathAttributeBuilder.set(target, xpath, values, id,
-                    targetNodeType, false, sourceExpression);
-            setClientProperties(instance, source, clientPropsMappings);
+                
+//                if (!isNestedFeature) {
+//                    if (singleVal instanceof Attribute) {
+//                        singleVal = ((Attribute) singleVal).getValue();
+//                    }
+//                    if (singleVal instanceof Collection) {
+//                        valueList.addAll((Collection) singleVal);
+//                    } else {
+//                        valueList.add(singleVal);
+//                    }
+//                } else {
+//                    valueList.add(singleVal);
+//                }
+//                instance = xpathAttributeBuilder.set(target, xpath, values, id,
+//                        targetNodeType, false, sourceExpression, attMapping.getDescriptors());
+//                
+//            }
+//        } else {
+		if (instance == null) {
+			if (values instanceof Attribute) {
+				// copy client properties from input features if they're complex
+				// features
+				// wrapped in app-schema data access
+				Map<Name, Expression> newClientProps = getClientProperties((Attribute) values);
+				if (!newClientProps.isEmpty()) {
+					newClientProps.putAll(clientPropsMappings);
+					clientPropsMappings = newClientProps;
+				}
+				values = ((Attribute) values).getValue();
+			}
+			instance = xpathAttributeBuilder.set(target, xpath, values, id,
+					targetNodeType, false, sourceExpression,
+					attMapping.getDescriptors());
+		}
+		
+			setClientProperties(instance, source, clientPropsMappings);
 
-        } 
-        if (instance != null && attMapping.encodeIfEmpty()) {
-            instance.getDescriptor().getUserData().put("encodeIfEmpty", attMapping.encodeIfEmpty());
-        }
+			// }
+			if (instance != null && attMapping.encodeIfEmpty()) {
+				instance.getDescriptor().getUserData()
+						.put("encodeIfEmpty", true);
+			}
+		
+        
+
         return instance;
     }
 
@@ -622,11 +711,11 @@ public class DataAccessMappingFeatureIterator extends AbstractMappingFeatureIter
      */
     private Attribute setPolymorphicReference(String uri,
             Map<Name, Expression> clientPropsMappings, Attribute target, StepList xpath,
-            AttributeType targetNodeType) {
+            AttributeType targetNodeType, List<AttributeDescriptor> descriptors) {
         
         if (uri != null) {
             Attribute instance = xpathAttributeBuilder.set(target, xpath, null, "", targetNodeType,
-                    true, null);
+                    true, null, descriptors);
             Map<Name, Expression> newClientProps = new HashMap<Name, Expression>();
             newClientProps.putAll(clientPropsMappings);
             newClientProps.put(XLINK_HREF_NAME, namespaceAwareFilterFactory.literal(uri));
@@ -675,7 +764,7 @@ public class DataAccessMappingFeatureIterator extends AbstractMappingFeatureIter
                 id = fTypeMapping.getFeatureIdExpression().evaluate(source, String.class);
             }
             Attribute instance = xpathAttributeBuilder.set(target, prefixedXpath, null, id,
-                    type, false, attDescriptor, null);
+                    type, false, null, nestedMapping.getDescriptors());
             setClientProperties(instance, source, clientPropsMappings);
             for (AttributeMapping mapping : polymorphicMappings) {
                 if (skipTopElement(polymorphicTypeName, mapping, type)) {
@@ -700,7 +789,7 @@ public class DataAccessMappingFeatureIterator extends AbstractMappingFeatureIter
      *            The target attribute
      * @param clientPropsMappings
      *            Client properties mappings
-     * @param value
+     * @param nestedFeatures
      *            Nested features
      * @param xpath
      *            Attribute xPath where the client properties are to be set
@@ -708,10 +797,14 @@ public class DataAccessMappingFeatureIterator extends AbstractMappingFeatureIter
      *            Target node type
      */
     protected void setXlinkReference(Attribute target, Map<Name, Expression> clientPropsMappings,
-            Object value, StepList xpath, AttributeType targetNodeType) {
-        Expression linkExpression = clientPropsMappings.get(XLINK_HREF_NAME);
+            Iterator<? extends Attribute> nestedFeatures, StepList xpath, AttributeType targetNodeType, List<AttributeDescriptor> descriptors) {
+        if (nestedFeatures == null) {
+        	return;
+        }
+    	Expression linkExpression = clientPropsMappings.get(XLINK_HREF_NAME);
+        while (nestedFeatures.hasNext()) {
+        	Attribute singleVal = nestedFeatures.next();
         
-        for (Object singleVal : (Collection) value) {
             // Make sure the same value isn't already set
             // in case it comes from a denormalized view for many-to-many relationship.
             // (1) Get the first existing value
@@ -740,7 +833,7 @@ public class DataAccessMappingFeatureIterator extends AbstractMappingFeatureIter
             }
             if (!exists) {
                 Attribute instance = xpathAttributeBuilder.set(target, xpath, null, null,
-                        targetNodeType, true, null);
+                        targetNodeType, true, null, descriptors);
                 setClientProperties(instance, singleVal, clientPropsMappings);
             }
         }
@@ -788,7 +881,7 @@ public class DataAccessMappingFeatureIterator extends AbstractMappingFeatureIter
      * @param features
      * @throws IOException
      */
-    private List<Feature> setNextFilteredFeature(String fId) throws IOException {
+    protected FeatureIterator<? extends Feature> getFilteredSources(String fId) throws IOException {
         FeatureCollection<? extends FeatureType, ? extends Feature> matchingFeatures;
         Query query = new Query();
         if (reprojection != null) {
@@ -833,50 +926,52 @@ public class DataAccessMappingFeatureIterator extends AbstractMappingFeatureIter
         
         FeatureIterator<? extends Feature> iterator = matchingFeatures.features();
 
-        List<Feature> features = new ArrayList<Feature>();
-        while (iterator.hasNext()) {
-            features.add(iterator.next());
-        }
-        // Probably cause there is no primary key nor idExpression
-        if (features.isEmpty()) {
-            features.add(curSrcFeature);
-        }
-
         filteredFeatures.add(fId);
 
-        iterator.close();
-        
-        curSrcFeature = null;
-        
-        return features;
+        return iterator;
     }
 
-    public void skipNestedMapping(AttributeMapping attMapping, List<Feature> sources) throws IOException {
-        if (attMapping instanceof JoiningNestedAttributeMapping) {
+	public void skipNestedMapping(AttributeMapping attMapping, Feature source)
+			throws IOException {
+		if (attMapping instanceof JoiningNestedAttributeMapping) {
 
-            for (Feature source : sources) {
-                Object value = getValues(attMapping.isMultiValued(), attMapping.getSourceExpression(), source);
+			Object value = getValues(attMapping.isMultiValued(),
+					attMapping.getSourceExpression(), source);
 
-                if (value instanceof Collection) {
-                    for (Object val : (Collection) value){
-                        ((JoiningNestedAttributeMapping)attMapping).skip(this, val, getIdValues(source));
-                    }
-                }
-                else {
-                    ((JoiningNestedAttributeMapping)attMapping).skip(this, value, getIdValues(source));
-                }
-            }
-        }
-    }
+			if (value instanceof Collection) {
+				for (Object val : (Collection) value) {
+					((JoiningNestedAttributeMapping) attMapping).skip(this,
+							val, getIdValues(source));
+				}
+			} else {
+				((JoiningNestedAttributeMapping) attMapping).skip(this, value,
+						getIdValues(source));
+			}
 
-    public List<Feature> skip() throws IOException {
+		}
+	}
+
+    public void skip() throws IOException {
         setHasNextCalled(false);
+        
+        String id = extractIdForFeature(curSrcFeature);
+        
+        FeatureIterator sources = getSourceFeatureIterator();
+        
+		Feature source;
+		while (sources.hasNext()) {
+			source = sources.next();
 
-        List<Feature> sources = getSources(extractIdForFeature(curSrcFeature));
-        for (AttributeMapping attMapping : selectedMapping) {
-            skipNestedMapping(attMapping, sources);
-        }
-        return sources;
+			if (extractIdForFeature(source).equals(id)
+					&& checkForeignIdValues(groupingForeignIds, source)) {
+				break;
+			}
+			for (AttributeMapping attMapping : selectedMapping) {
+				skipNestedMapping(attMapping, source);
+			}
+
+		}
+        
     }
     
     private GeometryDescriptor reprojectGeometry(GeometryDescriptor descr) {
@@ -927,80 +1022,216 @@ public class DataAccessMappingFeatureIterator extends AbstractMappingFeatureIter
     protected Feature computeNext() throws IOException {
 
         String id = getNextFeatureId();
-        List<Feature> sources = getSources(id);
+        Feature target = attf.createFeature(null, targetFeature, id);
+        Feature source = null;
+		FeatureIterator<? extends Feature> sources;
 
-        final Name targetNodeName = targetFeature.getName();
 
-        AttributeBuilder builder = new AttributeBuilder(attf);
-        builder.setDescriptor(targetFeature);
-        Feature target = (Feature) builder.build(id);
+		List<Feature> listFeatures = null;
 
-        for (AttributeMapping attMapping : selectedMapping) {
-            try {
-                if (skipTopElement(targetNodeName, attMapping, targetFeature.getType())) {
-                    // ignore the top level mapping for the Feature itself
-                    // as it was already set
-                    continue;
-                }
-                if (attMapping.isList()) {
-                    Attribute instance = setAttributeValue(target, null, sources.get(0),
-                            attMapping, null, null, selectedProperties.get(attMapping));
-                    if (sources.size() > 1 && instance != null) {
-                        List<Object> values = new ArrayList<Object>();
-                        Expression sourceExpr = attMapping.getSourceExpression();
-                        for (Feature source : sources) {
-                            values.add(getValue(sourceExpr, source));                        
-                        }
-                        String valueString = StringUtils.join(values.iterator(), " ");
-                        StepList fullPath = attMapping.getTargetXPath();
-                        StepList leafPath = fullPath.subList(fullPath.size() - 1, fullPath.size());
-                        if (instance instanceof ComplexAttributeImpl) {              
-                            // xpath builder will work out the leaf attribute to set values on
-                            xpathAttributeBuilder.set(instance, leafPath, valueString, null, null,
-                                    false, sourceExpr);
-                        } else {
-                            // simple attributes
-                            instance.setValue(valueString);
-                        }
-                    }
-                } else if (attMapping.isMultiValued()) {
-                    // extract the values from multiple source features of the same id
-                    // and set them to one built feature
-                    for (Feature source : sources) {
-                        setAttributeValue(target, null, source, attMapping, null, null, selectedProperties.get(attMapping));
-                    }
-                } else {
-                    String indexString = attMapping.getSourceIndex();
-                    // if not specified, get the first row by default
-                    int index = 0;
-                    if (indexString != null) {
-                        if (ComplexFeatureConstants.LAST_INDEX.equals(indexString)) {
-                            index = sources.size() - 1;
-                        } else {
-                            index = Integer.parseInt(indexString);
-                        }
-                    }
-                    setAttributeValue(target, null, sources.get(index), attMapping, null, null, selectedProperties.get(attMapping));
-                    // When a feature is not multi-valued but still has multiple rows with the same ID in
-                    // a denormalised table, by default app-schema only takes the first row and ignores
-                    // the rest (see above). The following line is to make sure that the cursors in the
-                    // 'joining nested mappings'skip any extra rows that were linked to those rows that are being ignored.
-                    // Otherwise the cursor will stay there in the wrong spot and none of the following feature chaining
-                    // will work. That can really only occur if the foreign key is not unique for the ID of the parent
-                    // feature (otherwise all of those rows would be already passed when creating the feature based on
-                    // the first row). This never really occurs in practice I have noticed, but it is a theoretic
-                    // possibility, as there is no requirement for the foreign key to be unique per id.
-                    skipNestedMapping(attMapping, sources.subList(1, sources.size()));
-                }
-            } catch (Exception e) {
-                throw new RuntimeException("Error applying mapping with targetAttribute "
-                        + attMapping.getTargetXPath(), e);
-            }
-        }
-        cleanEmptyElements(target);
-        
-        return target;
+		if (!listMapping.isEmpty()) {
+			listFeatures = new ArrayList<Feature>();
+		}
+		
+		int count = 0;
+		
+		if (isFiltered) {
+			sources = getFilteredSources(id);
+		} else {
+			if (curSrcFeature != null) {
+				if (listFeatures != null) {
+					if (listFilter == null || listFilter.evaluate(source)) {
+						listFeatures.add(curSrcFeature);
+					}
+				}
+				buildFeature(target, curSrcFeature, 0);
+         		count++;
+			}
+			sources = getSourceFeatureIterator();
+		}
+		boolean nextIdFound = false;
+		
+		while (sources.hasNext()) {
+			source = sources.next();
+
+			if (!isFiltered) {
+				if (!(extractIdForFeature(source).equals(id)
+						&& checkForeignIdValues(groupingForeignIds, source))) {
+					curSrcFeature = source;
+					nextIdFound = true;
+					break;
+				}
+			}
+
+			if (listFeatures != null) {
+				if (listFilter == null || listFilter.evaluate(source)) {
+					listFeatures.add(source);
+				}
+			}
+			
+			buildFeature(target, source, count);
+			
+			count++;
+		}
+		
+		if (isFiltered) {
+			// this is a second iterator, no longer needed now
+			sources.close();
+			if (source == null) {
+				buildFeature(target, curSrcFeature, 0);
+				if (listFeatures != null) {
+					if (listFilter == null || listFilter.evaluate(source)) {
+						listFeatures.add(curSrcFeature);
+					}
+				}
+			}
+		}
+		
+		for (AttributeMapping attMapping : singleValuedMapping) {
+			// if this is to use last index, use last source
+			String indexString = attMapping.getSourceIndex();
+			if (indexString != null
+					&& ComplexFeatureConstants.LAST_INDEX.equals(indexString)) {
+				setAttributeValue(target, null, source, attMapping, null, null,
+						selectedProperties.get(attMapping));
+			}
+		}
+		setListAttributes(target, listFeatures);
+		listFeatures = null;
+
+		cleanEmptyElements(target);
+		
+		if (!nextIdFound) {
+			curSrcFeature = null;
+		}
+
+		return target;
     }
+    
+	private void buildFeature(Feature target, Feature source, int count) throws IOException {
+		setMultiValuedAttributes(target, source, count);
+		
+		for (AttributeMapping attMapping : singleValuedMapping) {
+			try {
+				String indexString = attMapping.getSourceIndex();
+				if (indexString == null) {
+					if (count == 0) {
+					// first row
+						setAttributeValue(target, null, source, attMapping, null, null,
+								selectedProperties.get(attMapping));
+					}	
+				} else if (!ComplexFeatureConstants.LAST_INDEX.equals(indexString)
+		        	&& count == Integer.parseInt(indexString)) {
+					setAttributeValue(target, null, source, attMapping, null, null,
+							selectedProperties.get(attMapping));
+		        }
+				// When a feature is not multi-valued but still has multiple
+				// rows
+				// with the same ID in
+				// a denormalised table, by default app-schema only takes the
+				// first
+				// row and ignores
+				// the rest (see above). The following line is to make sure that
+				// the
+				// cursors in the
+				// 'joining nested mappings'skip any extra rows that were linked
+				// to
+				// those rows that are being ignored.
+				// Otherwise the cursor will stay there in the wrong spot and
+				// none
+				// of the following feature chaining
+				// will work. That can really only occur if the foreign key is
+				// not
+				// unique for the ID of the parent
+				// feature (otherwise all of those rows would be already passed
+				// when
+				// creating the feature based on
+				// the first row). This never really occurs in practice I have
+				// noticed, but it is a theoretic
+				// possibility, as there is no requirement for the foreign key
+				// to be
+				// unique per id.
+				if (count > 0) {
+					skipNestedMapping(attMapping, source);
+				}
+			} catch (Exception e) {
+				throw new RuntimeException(
+						"Error applying mapping with targetAttribute "
+								+ attMapping.getTargetXPath(), e);
+			}
+		}
+	}
+
+	protected void setListAttributes(Feature target, List<Feature> sources) {
+		for (AttributeMapping attMapping : listMapping) {
+			try {
+				Attribute instance = setAttributeValue(target, null,
+						sources.get(0), attMapping, null, null,
+						selectedProperties.get(attMapping));
+				if (sources.size() > 1 && instance != null) {
+					List<Object> values = new ArrayList<Object>();
+					Expression sourceExpr = attMapping.getSourceExpression();
+					for (Feature source : sources) {
+						values.add(getValue(sourceExpr, source));
+					}
+					String valueString = StringUtils.join(values.iterator(),
+							" ");
+					StepList fullPath = attMapping.getTargetXPath();
+					StepList leafPath = fullPath.subList(fullPath.size() - 1,
+							fullPath.size());
+					if (instance instanceof ComplexAttributeImpl) {
+						// xpath builder will work out the leaf attribute to set
+						// values on
+						xpathAttributeBuilder.set(instance, leafPath,
+								valueString, null, null, false, sourceExpr,
+								attMapping.getDescriptors());
+					} else {
+						// simple attributes
+						instance.setValue(valueString);
+					}
+				}
+			} catch (Exception e) {
+				throw new RuntimeException(
+						"Error applying mapping with targetAttribute "
+								+ attMapping.getTargetXPath(), e);
+			}
+		}
+	}
+	
+	protected void setMultiValuedAttributes(Feature target, Feature source, int index)
+			throws IOException {
+		for (AttributeMapping attMapping : multiValuedMapping) {
+			try {
+				setAttributeValue(target, null, source, attMapping, null, null,
+						selectedProperties.get(attMapping));
+				// When a feature is not multi-valued but still has multiple
+				// rows with the same ID in
+				// a denormalised table, by default app-schema only takes the
+				// first row and ignores
+				// the rest (see above). The following line is to make sure that
+				// the cursors in the
+				// 'joining nested mappings'skip any extra rows that were linked
+				// to those rows that are being ignored.
+				// Otherwise the cursor will stay there in the wrong spot and
+				// none of the following feature chaining
+				// will work. That can really only occur if the foreign key is
+				// not unique for the ID of the parent
+				// feature (otherwise all of those rows would be already passed
+				// when creating the feature based on
+				// the first row). This never really occurs in practice I have
+				// noticed, but it is a theoretic
+				// possibility, as there is no requirement for the foreign key
+				// to be unique per id.
+				if (index > 0) {
+					skipNestedMapping(attMapping, source);
+				}
+			} catch (Exception e) {
+				throw new RuntimeException(
+						"Error applying mapping with targetAttribute "
+								+ attMapping.getTargetXPath(), e);
+			}
+		}
+	}
 
     /**
      * Get all source features of the provided id. This assumes the source features are grouped by
@@ -1011,13 +1242,13 @@ public class DataAccessMappingFeatureIterator extends AbstractMappingFeatureIter
      * @return list of source features
      * @throws IOException
      */
-    protected List<Feature> getSources(String id) throws IOException {
-        if (isFiltered) {
-            return setNextFilteredFeature(id);
-        } else {
-            return setNextFeature(id, getForeignIdValues(curSrcFeature));
-        }
-    }
+//    protected FeatureIterator<Feature> getSources(String id) throws IOException {  
+//		if (isFiltered) {
+//			return getFilteredSources();
+//		} else {
+//			return getGroupedSources(id, getForeignIdValues(curSrcFeature));
+//		}
+//    }
         
     protected String getNextFeatureId() {
         return extractIdForFeature(curSrcFeature);
@@ -1028,7 +1259,7 @@ public class DataAccessMappingFeatureIterator extends AbstractMappingFeatureIter
             ArrayList values = new ArrayList<Property>();
             for (Iterator i = target.getValue().iterator(); i.hasNext();) {
                 Property p = (Property) i.next();
-                if (hasChild(p) || p.getDescriptor().getMinOccurs() > 0 || getEncodeIfEmpty(p)) {
+                if (p.getDescriptor().getMinOccurs() > 0 || getEncodeIfEmpty(p) || hasChild(p)) {
                     values.add(p);
                 }
             }
@@ -1063,7 +1294,7 @@ public class DataAccessMappingFeatureIterator extends AbstractMappingFeatureIter
                             values.add(o);
                         }
                     }
-                }
+                } 
             }
             p.setValue(values);
         } else if (p.getName().equals(ComplexFeatureConstants.FEATURE_CHAINING_LINK_NAME)) {
@@ -1073,14 +1304,6 @@ public class DataAccessMappingFeatureIterator extends AbstractMappingFeatureIter
             result = true;
         }
         return result;
-    }
-
-    protected boolean skipTopElement(Name topElement, AttributeMapping attMapping,
-            AttributeType type) {
-        // don't skip if there's OCQL
-		return Types.equals(topElement, attMapping.getTargetXPath())
-				&& (attMapping.getSourceExpression() == null || Expression.NIL
-						.equals(attMapping.getSourceExpression()));
     }
 
     protected Feature populateFeatureData(String id) throws IOException {
@@ -1094,6 +1317,7 @@ public class DataAccessMappingFeatureIterator extends AbstractMappingFeatureIter
             sourceFeatures = null;
             filteredFeatures = null;
             listFilter = null;
+            groupingForeignIds = null;
 
             //NC - joining nested atts
             for (AttributeMapping attMapping : selectedMapping) {
@@ -1122,23 +1346,23 @@ public class DataAccessMappingFeatureIterator extends AbstractMappingFeatureIter
      *            The xPath matching the attribute
      * @return The first matching attribute
      */
-    private Property getProperty(Attribute root, StepList xpath) {
-        Property property = root;
-
-        final StepList steps = new StepList(xpath);
-
-        Iterator<Step> stepsIterator = steps.iterator();
-
-        while (stepsIterator.hasNext()) {
-            assert property instanceof ComplexAttribute;
-            Step step = stepsIterator.next();
-            property = ((ComplexAttribute) property).getProperty(Types.toTypeName(step.getName()));
-            if (property == null) {
-                return null;
-            }
-        }
-        return property;
-    }
+//    private Property getProperty(Attribute root, StepList xpath) {
+//        Property property = root;
+//
+//        final StepList steps = new StepList(xpath);
+//
+//        Iterator<Step> stepsIterator = steps.iterator();
+//
+//        while (stepsIterator.hasNext()) {
+//            assert property instanceof ComplexAttribute;
+//            Step step = stepsIterator.next();
+//            property = ((ComplexAttribute) property).getProperty(Types.toTypeName(step.getName()));
+//            if (property == null) {
+//                return null;
+//            }
+//        }
+//        return property;
+//    }
 
     /**
      * Return all matching properties from provided root attribute and xPath.
@@ -1238,4 +1462,8 @@ public class DataAccessMappingFeatureIterator extends AbstractMappingFeatureIter
         }
         return (Boolean) o;
     }
+
+	public void setGroupingForeignIds(List<Object> idValues) {
+		this.groupingForeignIds = idValues;
+	}
 }

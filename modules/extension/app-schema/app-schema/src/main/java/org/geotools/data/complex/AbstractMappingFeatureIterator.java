@@ -26,18 +26,23 @@ import java.util.logging.Logger;
 import org.geotools.data.DataSourceException;
 import org.geotools.data.Query;
 import org.geotools.data.complex.filter.XPath;
+import org.geotools.data.complex.filter.XPath.Step;
 import org.geotools.data.complex.filter.XPath.StepList;
 import org.geotools.factory.CommonFactoryFinder;
 import org.geotools.feature.AppSchemaFeatureFactoryImpl;
+import org.geotools.feature.AttributeBuilder;
 import org.geotools.feature.FeatureIterator;
 import org.geotools.feature.Types;
 import org.geotools.feature.type.ComplexFeatureTypeFactoryImpl;
 import org.geotools.filter.FilterFactoryImplNamespaceAware;
+import org.geotools.util.CheckedArrayList;
 import org.geotools.xlink.XLINK;
 import org.opengis.feature.Attribute;
+import org.opengis.feature.ComplexAttribute;
 import org.opengis.feature.Feature;
 import org.opengis.feature.FeatureFactory;
 import org.opengis.feature.type.AttributeDescriptor;
+import org.opengis.feature.type.AttributeType;
 import org.opengis.feature.type.FeatureTypeFactory;
 import org.opengis.feature.type.PropertyDescriptor;
 import org.opengis.feature.GeometryAttribute;
@@ -97,7 +102,7 @@ public abstract class AbstractMappingFeatureIterator implements IMappingFeatureI
     /**
      * Factory used to create the target feature and attributes
      */
-    protected FeatureFactory attf;
+    protected AppSchemaFeatureFactoryImpl attf;
 
     protected AppSchemaDataAccess store;
 
@@ -114,11 +119,22 @@ public abstract class AbstractMappingFeatureIterator implements IMappingFeatureI
     protected int featureCounter;
 
     protected NamespaceSupport namespaces;
+       
+	protected AttributeDescriptor targetFeature;
 
     /**
      * True if hasNext has been called prior to calling next()
      */
     private boolean hasNextCalled = false;
+
+	protected List<AttributeMapping> listMapping;
+
+	protected List<AttributeMapping> multiValuedMapping;
+
+	protected List<AttributeMapping> singleValuedMapping;
+
+	private AttributeBuilder builder;
+
     
     public AbstractMappingFeatureIterator(AppSchemaDataAccess store, FeatureTypeMapping mapping,
             Query query) throws IOException {
@@ -149,7 +165,7 @@ public abstract class AbstractMappingFeatureIterator implements IMappingFeatureI
         } else {
             setPropertyNames(null); // we need the actual property names (not surrogates) to do
                                     // this...
-        }
+        }       
         
         this.maxFeatures = query.getMaxFeatures();
                 
@@ -160,12 +176,46 @@ public abstract class AbstractMappingFeatureIterator implements IMappingFeatureI
         xpathAttributeBuilder.setFeatureFactory(attf);
         initialiseSourceFeatures(mapping, unrolledQuery, query.getCoordinateSystemReproject());
         xpathAttributeBuilder.setFilterFactory(namespaceAwareFilterFactory);
+        xpathAttributeBuilder.setNamespace(namespaces);
+        
+
+        // Divide the multi-valued mapping for different handlings in computeNext()
+        listMapping = new ArrayList<AttributeMapping>();
+        multiValuedMapping = new ArrayList<AttributeMapping>();
+        singleValuedMapping = new ArrayList<AttributeMapping>();
+        
+        final Name targetNodeName = targetFeature.getName();
+//        builder = new AttributeBuilder(attf);
+//        builder.setDescriptor(targetFeature);
+        
+        for (AttributeMapping attMapping : selectedMapping) {
+        	if (skipTopElement(targetNodeName, attMapping, targetFeature.getType())) {
+                // ignore the top level mapping for the Feature itself
+                // as it was already set
+                continue;
+            } else if (attMapping.isList()) {
+        		listMapping.add(attMapping);
+        	} else if (attMapping.isMultiValued()) {
+        		multiValuedMapping.add(attMapping);
+        	} else {
+        		singleValuedMapping.add(attMapping);
+        	}
+        }
+    }    
+
+    protected boolean skipTopElement(Name topElement, AttributeMapping attMapping,
+            AttributeType type) {
+        // don't skip if there's OCQL
+		return Types.equals(topElement, attMapping.getTargetXPath())
+				&& (attMapping.getSourceExpression() == null || Expression.NIL
+						.equals(attMapping.getSourceExpression()));
     }
     
     //properties can only be set by constructor, before initialising source features 
     //(for joining nested mappings)
     private void setPropertyNames(Collection<PropertyName> propertyNames) {
-        selectedProperties = new HashMap<AttributeMapping, List<PropertyName>>();
+        
+    	selectedProperties = new HashMap<AttributeMapping, List<PropertyName>>();
 
         if (propertyNames == null) {
             selectedMapping = mapping.getAttributeMappings();
@@ -411,4 +461,8 @@ public abstract class AbstractMappingFeatureIterator implements IMappingFeatureI
     protected abstract Feature computeNext() throws IOException;   
 
     public abstract boolean hasNext();
+    
+//    public abstract int size();
+    
+    
 }

@@ -19,6 +19,7 @@ package org.geotools.feature;
 
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Iterator;
 
 import org.geotools.feature.type.GeometryDescriptorImpl;
 import org.geotools.feature.type.GeometryTypeImpl;
@@ -35,6 +36,7 @@ import org.opengis.feature.type.GeometryDescriptor;
 import org.opengis.feature.type.GeometryType;
 import org.opengis.filter.identity.FeatureId;
 import org.opengis.filter.identity.GmlObjectId;
+import org.opengis.filter.identity.Identifier;
 import org.opengis.referencing.crs.CoordinateReferenceSystem;
 
 /**
@@ -184,6 +186,10 @@ public class AppSchemaFeatureFactoryImpl extends ValidatingFeatureFactoryImpl {
         } else {
             return value;
         }
+    }
+    
+    public ComplexAttribute createNestedAttribute(AttributeDescriptor descriptor,  String id, Iterator<ComplexAttribute> nestedFeatures) {
+    	return new NestedAttributeImpl(descriptor, buildSafeFeatureId(id), nestedFeatures);
     }
 
 }

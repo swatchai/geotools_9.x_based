@@ -28,6 +28,7 @@ import org.geotools.data.complex.ComplexFeatureConstants;
 import org.geotools.data.complex.config.NonFeatureTypeProxy;
 import org.geotools.feature.type.AttributeDescriptorImpl;
 import org.geotools.feature.type.GeometryDescriptorImpl;
+import org.geotools.xs.XSSchema;
 import org.opengis.feature.Association;
 import org.opengis.feature.Attribute;
 import org.opengis.feature.ComplexAttribute;
@@ -487,6 +488,25 @@ public class AttributeBuilder {
     public Attribute add(String id, Object value, String name, String namespaceURI) {
         return add(id, value, Types.typeName(namespaceURI, name));
     }
+    
+    /**
+     * Adds an attribute to the complex attribute being built. <br>
+     * <p>
+     * This method uses the type supplied in {@link #setType(AttributeType)} in order to determine
+     * the attribute type.
+     * </p>
+     * 
+     * @param id
+     *                The id of the attribute.
+     * @param name
+     *                The name of the attribute.
+     * @param value
+     *                The value of the attribute.
+     * 
+     */
+    public Attribute add(String id, Object value, Name name) {        
+        return add(id, value, name);
+    }
 
     /**
      * Adds an attribute to the complex attribute being built. <br>
@@ -503,8 +523,8 @@ public class AttributeBuilder {
      *                The value of the attribute.
      * 
      */
-    public Attribute add(String id, Object value, Name name) {
-        AttributeDescriptor descriptor = attributeDescriptor(name);
+    public Attribute add(String id, Object value, Name name, AttributeDescriptor targetDescriptor) {
+        AttributeDescriptor descriptor = (targetDescriptor != null) ? targetDescriptor : attributeDescriptor(name);
         Attribute attribute = create(value, null, descriptor, id);
         properties().add(attribute);
         return attribute;
