@@ -133,7 +133,7 @@ public abstract class AbstractMappingFeatureIterator implements IMappingFeatureI
 
 	protected List<AttributeMapping> singleValuedMapping;
 
-	private AttributeBuilder builder;
+	protected AttributeBuilder builder;
 
     
     public AbstractMappingFeatureIterator(AppSchemaDataAccess store, FeatureTypeMapping mapping,
@@ -172,7 +172,8 @@ public abstract class AbstractMappingFeatureIterator implements IMappingFeatureI
         if (unrolledQuery==null) {
             unrolledQuery = getUnrolledQuery(query);
         }
-        xpathAttributeBuilder = new XPath();
+        builder = new AttributeBuilder(this.attf);
+        xpathAttributeBuilder = new XPath(builder);
         xpathAttributeBuilder.setFeatureFactory(attf);
         initialiseSourceFeatures(mapping, unrolledQuery, query.getCoordinateSystemReproject());
         xpathAttributeBuilder.setFilterFactory(namespaceAwareFilterFactory);

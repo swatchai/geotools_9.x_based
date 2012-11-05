@@ -115,15 +115,26 @@ public class XPath {
 
 	private NamespaceSupport ns;
 
+	private AttributeBuilder builder;
+
+    public XPath(AttributeBuilder builder) {
+        this.builder = builder;
+        this.FF = CommonFactoryFinder.getFilterFactory(null);
+        this.featureFactory = new ValidatingFeatureFactoryImpl();
+        this.descriptorFactory = new UniqueNameFeatureTypeFactoryImpl();
+    }
+    
     public XPath() {
         this.FF = CommonFactoryFinder.getFilterFactory(null);
         this.featureFactory = new ValidatingFeatureFactoryImpl();
         this.descriptorFactory = new UniqueNameFeatureTypeFactoryImpl();
+        this.builder = new AttributeBuilder(featureFactory);
     }
 
     public XPath(FilterFactory ff, FeatureFactory featureFactory) {
         setFilterFactory(ff);
         setFeatureFactory(featureFactory);
+        this.builder = new AttributeBuilder(featureFactory);
         // this.descriptorFactory = new TypeFactoryImpl();
     }
 
@@ -933,26 +944,25 @@ public class XPath {
                 
         Attribute leafAttribute = null;
         final Name attributeName = descriptor.getName();    
-            AttributeBuilder builder = new AttributeBuilder(featureFactory);
-            if (crs != null) {
-                builder.setCRS(crs);
-            }
-            builder.setDescriptor(parent.getDescriptor());
+//            if (crs != null) {
+//                builder.setCRS(crs);
+//            }
+//            builder.setDescriptor(parent.getDescriptor());
             // check for mapped type override
-            builder.setType(parent.getType());
+//            builder.setType(parent.getType());
 
             if (parent.getType().getName().equals(XSSchema.ANYTYPE_TYPE.getName())) {
                     // special handling for casting any type since there's no attributes in its
                     // schema
                     leafAttribute = builder.addAnyTypeValue(convertedValue, targetNodeType,
-                            descriptor, id);
+                            descriptor, id, crs);
             } else if (descriptor.getType().getName().equals(XSSchema.ANYTYPE_TYPE.getName())
                     && (value == null || (value instanceof Collection && ((Collection) value)
                             .isEmpty()))) {
                 // casting anyType as a complex attribute so we can set xlink:href
                 leafAttribute = builder.addComplexAnyTypeAttribute(convertedValue, descriptor, id);
             } else {
-                leafAttribute = builder.add(id, convertedValue, attributeName, descriptor);
+                leafAttribute = builder.add(id, convertedValue, attributeName, descriptor, crs);
             }
 //            if (index > -1) {
 //                // set attribute index if specified so it can be retrieved later for grouping

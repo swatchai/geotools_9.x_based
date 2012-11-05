@@ -188,7 +188,7 @@ public class AppSchemaFeatureFactoryImpl extends ValidatingFeatureFactoryImpl {
         }
     }
     
-    public ComplexAttribute createNestedAttribute(AttributeDescriptor descriptor,  String id, Iterator<ComplexAttribute> nestedFeatures) {
+    public ComplexAttribute createNestedAttribute(AttributeDescriptor descriptor,  String id, Iterator<Attribute> nestedFeatures) {
     	return new NestedAttributeImpl(descriptor, buildSafeFeatureId(id), nestedFeatures);
     }
 

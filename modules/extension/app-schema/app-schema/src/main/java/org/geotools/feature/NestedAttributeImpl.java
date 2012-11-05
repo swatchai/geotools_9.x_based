@@ -8,6 +8,7 @@ import java.util.List;
 import java.util.Map;
 
 import org.geotools.data.complex.NestedFeaturesCollection;
+import org.opengis.feature.Attribute;
 import org.opengis.feature.ComplexAttribute;
 import org.opengis.feature.Feature;
 import org.opengis.feature.IllegalAttributeException;
@@ -17,12 +18,12 @@ import org.opengis.feature.type.ComplexType;
 import org.opengis.feature.type.Name;
 import org.opengis.filter.identity.Identifier;
 
-public class NestedAttributeImpl extends ComplexAttributeImpl implements Collection<ComplexAttribute> {
+public class NestedAttributeImpl extends ComplexAttributeImpl implements Collection<Attribute> {
 
-	private Iterator<ComplexAttribute> iterator;
+	private Iterator<Attribute> iterator;
 
 	public NestedAttributeImpl(
-			AttributeDescriptor descriptor, Identifier id, Iterator<ComplexAttribute> nestedFeatures) {
+			AttributeDescriptor descriptor, Identifier id, Iterator<Attribute> nestedFeatures) {
 		super(new ArrayList<Property>(), descriptor, id);
 		this.iterator = nestedFeatures;
 	}
@@ -66,7 +67,7 @@ public class NestedAttributeImpl extends ComplexAttributeImpl implements Collect
 	}
 
 	@Override
-	public Iterator<ComplexAttribute> iterator() {
+	public Iterator<Attribute> iterator() {
 		return iterator;
 	}
 
@@ -82,11 +83,6 @@ public class NestedAttributeImpl extends ComplexAttributeImpl implements Collect
 		return null;
 	}
 
-	@Override
-	public boolean add(ComplexAttribute e) {
-		// TODO Auto-generated method stub
-		return false;
-	}
 
 	@Override
 	public boolean remove(Object o) {
@@ -119,7 +115,13 @@ public class NestedAttributeImpl extends ComplexAttributeImpl implements Collect
 	}
 
 	@Override
-	public boolean addAll(Collection<? extends ComplexAttribute> c) {
+	public boolean add(Attribute e) {
+		// TODO Auto-generated method stub
+		return false;
+	}
+
+	@Override
+	public boolean addAll(Collection<? extends Attribute> c) {
 		// TODO Auto-generated method stub
 		return false;
 	}

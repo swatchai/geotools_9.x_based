@@ -533,13 +533,16 @@ public class DataAccessMappingFeatureIterator extends AbstractMappingFeatureIter
 					.get(0);
         	
         	if (!isHRefLink) {
-        		nestedFeaturesElement = this.attf.createComplexAttribute(null, attDescriptor, id);
-			setClientProperties(nestedFeaturesElement, source,
+
+        		//TODO: move this so only done once?                
+                
+        		nestedFeaturesElement = builder.add(id, new ArrayList(), null, attDescriptor, this.reprojection);
+			    setClientProperties(nestedFeaturesElement, source,
 					clientPropsMappings);
-//			if (attMapping.encodeIfEmpty()) {
-//				nestedFeaturesElement.getDescriptor().getUserData()
-//						.put("encodeIfEmpty", true);
-//			}
+			if (attMapping.encodeIfEmpty()) {
+				nestedFeaturesElement.getDescriptor().getUserData()
+						.put("encodeIfEmpty", true);
+			}
         	}
 			
             // get built feature based on link value
@@ -621,7 +624,7 @@ public class DataAccessMappingFeatureIterator extends AbstractMappingFeatureIter
 //		            newValue.add(instance);
 //		            target.setValue(newValue);
 //				}
-				instance = this.attf.createNestedAttribute(attDescriptor, id, (Iterator<ComplexAttribute>) nestedFeatures);
+				instance = this.attf.createNestedAttribute(attDescriptor, id, (Iterator<Attribute>) nestedFeatures);
 				XSDElementDeclaration elemDecl = (XSDElementDeclaration) attDescriptor.getUserData()
 				.get(XSDElementDeclaration.class);
 		instance.getUserData().put(XSDElementDeclaration.class,
@@ -664,7 +667,7 @@ public class DataAccessMappingFeatureIterator extends AbstractMappingFeatureIter
 //                
 //            }
 //        } else {
-		if (instance == null) {
+		if (!isNestedFeature && instance == null) {
 			if (values instanceof Attribute) {
 				// copy client properties from input features if they're complex
 				// features
@@ -679,8 +682,6 @@ public class DataAccessMappingFeatureIterator extends AbstractMappingFeatureIter
 			instance = xpathAttributeBuilder.set(target, xpath, values, id,
 					targetNodeType, false, sourceExpression,
 					attMapping.getDescriptors());
-		}
-		
 			setClientProperties(instance, source, clientPropsMappings);
 
 			// }
@@ -688,6 +689,9 @@ public class DataAccessMappingFeatureIterator extends AbstractMappingFeatureIter
 				instance.getDescriptor().getUserData()
 						.put("encodeIfEmpty", true);
 			}
+		}
+		
+			
 		
         
 

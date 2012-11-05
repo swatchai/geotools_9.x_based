@@ -230,20 +230,21 @@ public class AttributeBuilder {
     }
 
     // Feature specific methods
-    /**
-     * Sets the coordinate reference system of the built feature.
-     */
-    public void setCRS(CoordinateReferenceSystem crs) {
-        this.crs = crs;
-    }
+//    /**
+//     * Sets the coordinate reference system of the built feature.
+//     */
+//    public void setCRS(CoordinateReferenceSystem crs) {
+//        this.crs = crs;
+//    }
 
     /**
      * @return The coordinate reference system of the feature, or null if not set.
      */
     public CoordinateReferenceSystem getCRS(Object geom) {
-        if (crs != null) {
-            return crs;
-        } else if (geom != null && geom instanceof Geometry) {
+//        if (crs != null) {
+//            return crs;
+//        } else
+        	if (geom != null && geom instanceof Geometry) {
             Object userData = ((Geometry) geom).getUserData();
             if (userData != null && userData instanceof CoordinateReferenceSystem) {
                 return (CoordinateReferenceSystem) userData;
@@ -366,66 +367,49 @@ public class AttributeBuilder {
      *                for the given AttributeDescriptor or a derived type.
      * 
      */
-    public Attribute add(final String id, final Object value, final Name name,
-            final AttributeType type) {
-        // existence check
-        AttributeDescriptor descriptor = attributeDescriptor(name);
-        AttributeType declaredType = (AttributeType) descriptor.getType();
-        if (!declaredType.equals(type)) {
-            boolean argIsSubType = Types.isSuperType(type, declaredType);
-            if (!argIsSubType) {
-                /*
-                 * commented out since we got community schemas where the required instance type is
-                 * not a subtype of the declared one throw new
-                 * IllegalArgumentException(type.getName() + " is not a subtype of " +
-                 * declaredType.getName());
-                 */
-                LOGGER.fine("Adding attribute " + name + " of type " + type.getName()
-                        + " which is not a subtype of " + declaredType.getName());
-            }
-            int minOccurs = descriptor.getMinOccurs();
-            int maxOccurs = descriptor.getMaxOccurs();
-            boolean nillable = descriptor.isNillable();
-            // TODO: handle default value
-            Object defaultValue = null;
-            if (type instanceof GeometryType) {
-                descriptor = new GeometryDescriptorImpl((GeometryType) type, name, minOccurs,
-                        maxOccurs, nillable, defaultValue);
-            } else {
-                descriptor = new AttributeDescriptorImpl(type, name, minOccurs, maxOccurs,
-                        nillable, defaultValue);
-            }
-        }
-        Attribute attribute;
-        if (descriptor != null && descriptor.getType() instanceof NonFeatureTypeProxy) {
-            // we don't want a feature. NonFeatureTypeProxy is used to make non feature types
-            // a fake feature type, so it can be created as top level feature in app-schema
-            // mapping file. When created inside other features, it should be encoded as
-            // complex features though.
-            attribute = createComplexAttribute(value, null, descriptor, id);
-        } else {
-            attribute = create(value, null, descriptor, id);
-        }
-        properties().add(attribute);
-        return attribute;
-    }
-
-    /**
-     * Adds an attribute to the complex attribute being built. <br>
-     * <p>
-     * This method uses the type supplied in {@link #setType(AttributeType)} in order to determine
-     * the attribute type.
-     * </p>
-     * 
-     * @param name
-     *                The name of the attribute.
-     * @param value
-     *                The value of the attribute.
-     * 
-     */
-    public Attribute add(Object value, Name name) {
-        return add(null, value, name);
-    }
+//    public Attribute add(final String id, final Object value, final Name name,
+//            final AttributeType type, CoordinateReferenceSystem crs) {
+//        // existence check
+//        AttributeDescriptor descriptor = attributeDescriptor(name);
+//        AttributeType declaredType = (AttributeType) descriptor.getType();
+//        if (!declaredType.equals(type)) {
+//            boolean argIsSubType = Types.isSuperType(type, declaredType);
+//            if (!argIsSubType) {
+//                /*
+//                 * commented out since we got community schemas where the required instance type is
+//                 * not a subtype of the declared one throw new
+//                 * IllegalArgumentException(type.getName() + " is not a subtype of " +
+//                 * declaredType.getName());
+//                 */
+//                LOGGER.fine("Adding attribute " + name + " of type " + type.getName()
+//                        + " which is not a subtype of " + declaredType.getName());
+//            }
+//            int minOccurs = descriptor.getMinOccurs();
+//            int maxOccurs = descriptor.getMaxOccurs();
+//            boolean nillable = descriptor.isNillable();
+//            // TODO: handle default value
+//            Object defaultValue = null;
+//            if (type instanceof GeometryType) {
+//                descriptor = new GeometryDescriptorImpl((GeometryType) type, name, minOccurs,
+//                        maxOccurs, nillable, defaultValue);
+//            } else {
+//                descriptor = new AttributeDescriptorImpl(type, name, minOccurs, maxOccurs,
+//                        nillable, defaultValue);
+//            }
+//        }
+//        Attribute attribute;
+//        if (descriptor != null && descriptor.getType() instanceof NonFeatureTypeProxy) {
+//            // we don't want a feature. NonFeatureTypeProxy is used to make non feature types
+//            // a fake feature type, so it can be created as top level feature in app-schema
+//            // mapping file. When created inside other features, it should be encoded as
+//            // complex features though.
+//            attribute = createComplexAttribute(value, null, descriptor, id);
+//        } else {
+//            attribute = create(value, null, descriptor, id, crs);
+//        }
+//        properties().add(attribute);
+//        return attribute;
+//    }
 
     /**
      * Adds an association to the complex attribute being built. <br>
@@ -521,11 +505,12 @@ public class AttributeBuilder {
      *                The name of the attribute.
      * @param value
      *                The value of the attribute.
+     * @param crs2 
      * 
      */
-    public Attribute add(String id, Object value, Name name, AttributeDescriptor targetDescriptor) {
+    public Attribute add(String id, Object value, Name name, AttributeDescriptor targetDescriptor, CoordinateReferenceSystem crs) {
         AttributeDescriptor descriptor = (targetDescriptor != null) ? targetDescriptor : attributeDescriptor(name);
-        Attribute attribute = create(value, null, descriptor, id);
+        Attribute attribute = create(value, null, descriptor, id, crs);
         properties().add(attribute);
         return attribute;
     }
@@ -576,9 +561,10 @@ public class AttributeBuilder {
     /**
      * Factors out attribute creation code, needs to be called with either one of type or descriptor
      * null.
+     * @param crs 
      */
     protected Attribute create(Object value, AttributeType type, AttributeDescriptor descriptor,
-            String id) {
+            String id, CoordinateReferenceSystem crs) {
         if (descriptor != null) {
             type = (AttributeType) descriptor.getType();
         }
@@ -595,7 +581,7 @@ public class AttributeBuilder {
             return createComplexAttribute((Collection) value, (ComplexType) type, descriptor, id);
         } else if (type instanceof GeometryType) {
             return attributeFactory.createGeometryAttribute(value, (GeometryDescriptor) descriptor,
-                    id, getCRS(value));
+                    id, (crs == null ? getCRS(value) : crs));
         } else {
             return attributeFactory.createAttribute(value, descriptor, id);
         }
@@ -643,7 +629,7 @@ public class AttributeBuilder {
      * @return The build attribute.
      */
     public Attribute build(String id) {
-        Attribute built = create(properties(), type, descriptor, id);
+        Attribute built = create(properties(), type, descriptor, id, null);
 
         // FIXME
         // // if geometry, set the crs
@@ -682,11 +668,12 @@ public class AttributeBuilder {
      * @param descriptor
      *            the attribute descriptor of anyType type
      * @param id
+     * @param crs 
      * @return
      */
     public Attribute addAnyTypeValue(Object value, AttributeType type,
-            AttributeDescriptor descriptor, String id) {
-        Attribute attribute = create(value, type, descriptor, id);
+            AttributeDescriptor descriptor, String id, CoordinateReferenceSystem crs) {
+        Attribute attribute = create(value, type, descriptor, id, crs);
         properties().add(attribute);
         return attribute;
     }
@@ -698,6 +685,7 @@ public class AttributeBuilder {
      * @param value
      * @param descriptor
      * @param id
+     * @param crs 
      * @return
      */
     public Attribute addComplexAnyTypeAttribute(Object value, AttributeDescriptor descriptor,
