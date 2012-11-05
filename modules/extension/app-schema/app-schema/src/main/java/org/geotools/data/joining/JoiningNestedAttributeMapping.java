@@ -351,9 +351,9 @@ public class JoiningNestedAttributeMapping extends NestedAttributeMapping {
      * @throws IOException
      */
     @Override
-    public Iterator<? extends ComplexAttribute> getFeatures(Object caller, Object foreignKeyValue, List<Object> idValues,
+    public Iterator<? extends Attribute> getFeatures(Object caller, Object foreignKeyValue, List<Object> idValues,
             CoordinateReferenceSystem reprojection, Object feature,
-            List<PropertyName> selectedProperties, boolean includeMandatory, ComplexAttribute nestedFeaturesElement) throws IOException {
+            List<PropertyName> selectedProperties, boolean includeMandatory, Attribute nestedFeaturesElement) throws IOException {
 
         if (isSameSource()) {
             // if linkField is null, this method shouldn't be called because the mapping

@@ -351,8 +351,8 @@ public class NestedAttributeMapping extends AttributeMapping {
      * @return The matching simple features
      * @throws IOException
      */
-    public Iterator<? extends ComplexAttribute> getFeatures(Object foreignKeyValue,
-            CoordinateReferenceSystem reprojection, ComplexAttribute f2) throws IOException{
+    public Iterator<? extends Attribute> getFeatures(Object foreignKeyValue,
+            CoordinateReferenceSystem reprojection, Attribute f2) throws IOException{
         return getFeatures(null, foreignKeyValue, null, reprojection, f2, null, true, null);
     }
             
@@ -368,9 +368,9 @@ public class NestedAttributeMapping extends AttributeMapping {
      * @return The matching simple features
      * @throws IOException
      */
-    public Iterator<? extends ComplexAttribute> getFeatures(Object source, Object foreignKeyValue,  List<Object> idValues, 
+    public Iterator<? extends Attribute> getFeatures(Object source, Object foreignKeyValue,  List<Object> idValues, 
             CoordinateReferenceSystem reprojection, Object feature, List<PropertyName> selectedProperties, boolean includeMandatory, 
-            ComplexAttribute nestedFeaturesElement) throws IOException {
+            Attribute nestedFeaturesElement) throws IOException {
 
     	if (foreignKeyValue == null) {    		
     		return null;
@@ -478,8 +478,18 @@ public class NestedAttributeMapping extends AttributeMapping {
         return this.nestedTargetXPath == null;
     }
 
-    public FeatureTypeMapping getFeatureTypeMapping(ComplexAttribute f2) throws IOException {
-        FeatureSource<FeatureType, Feature> fSource = getMappingSource(f2);
+    public FeatureTypeMapping getFeatureTypeMapping(Attribute att) throws IOException {
+    	FeatureSource<FeatureType, Feature> fSource =null;
+    	Object feature = att.getValue();
+        if (feature != null && feature instanceof Collection) {
+        	Collection valueList = (Collection)feature;
+        	if (!valueList.isEmpty()) {
+        		feature = valueList.iterator().next();
+        	}
+        }
+        if (feature != null) {
+        	fSource = getMappingSource(feature);
+        }
         if (fSource == null) {
             return null;
         }

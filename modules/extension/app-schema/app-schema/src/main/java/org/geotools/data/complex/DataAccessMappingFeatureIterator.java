@@ -524,10 +524,10 @@ public class DataAccessMappingFeatureIterator extends AbstractMappingFeatureIter
 
             
             boolean isHRefLink = isByReference(clientPropsMappings, isNestedFeature);
-        	Iterator<? extends ComplexAttribute> nestedFeatures = null;
+        	Iterator<? extends Attribute> nestedFeatures = null;
         
         	//TODO: check for null, check for ComplexAttribute
-        	ComplexAttribute nestedFeaturesElement = null;
+        	Attribute nestedFeaturesElement = null;
 
 			AttributeDescriptor attDescriptor = attMapping.getDescriptors()
 					.get(0);
@@ -797,13 +797,13 @@ public class DataAccessMappingFeatureIterator extends AbstractMappingFeatureIter
      *            Target node type
      */
     protected void setXlinkReference(Attribute target, Map<Name, Expression> clientPropsMappings,
-            Iterator<? extends ComplexAttribute> nestedFeatures, StepList xpath, AttributeType targetNodeType, List<AttributeDescriptor> descriptors) {
+            Iterator<? extends Attribute> nestedFeatures, StepList xpath, AttributeType targetNodeType, List<AttributeDescriptor> descriptors) {
         if (nestedFeatures == null) {
         	return;
         }
     	Expression linkExpression = clientPropsMappings.get(XLINK_HREF_NAME);
         while (nestedFeatures.hasNext()) {
-        	ComplexAttribute singleVal = nestedFeatures.next();
+        	Attribute singleVal = nestedFeatures.next();
         
             // Make sure the same value isn't already set
             // in case it comes from a denormalized view for many-to-many relationship.

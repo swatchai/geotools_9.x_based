@@ -376,7 +376,7 @@ public class MappingFeatureCollection implements FeatureCollection<FeatureType, 
         return this.query;
     }
 
-	public NestedAttributeIterator iterator(ComplexAttribute nestedFeaturesElement) {
+	public NestedAttributeIterator iterator(Attribute nestedFeaturesElement) {
 		try {
             return MappingFeatureIteratorFactory.getInstance(store, mapping, query, unrolledFilter, nestedFeaturesElement);
         } catch (IOException e) {

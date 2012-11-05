@@ -254,7 +254,7 @@ public class MappingFeatureIteratorFactory {
 
 	public static NestedAttributeIterator getInstance(AppSchemaDataAccess store,
 			FeatureTypeMapping mapping, Query query, Filter unrolledFilter,
-			ComplexAttribute parentElement) throws IOException {
+			Attribute parentElement) throws IOException {
 		IMappingFeatureIterator iterator = getInstance(store, mapping, query, unrolledFilter);
 		return new NestedAttributeIterator(iterator, parentElement);
 	}

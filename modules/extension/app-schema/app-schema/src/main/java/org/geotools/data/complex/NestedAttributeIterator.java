@@ -19,6 +19,7 @@ package org.geotools.data.complex;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Iterator;
 
 import org.geotools.data.Query;
@@ -27,6 +28,7 @@ import org.geotools.feature.Types;
 import org.opengis.feature.Attribute;
 import org.opengis.feature.ComplexAttribute;
 import org.opengis.feature.Feature;
+import org.opengis.feature.Property;
 import org.opengis.feature.type.Name;
 /**
  * A Feature iterator that operates over the FeatureSource of a
@@ -45,13 +47,13 @@ import org.opengis.feature.type.Name;
  *         /java/org/geotools/data/complex/MappingAttributeIterator.java $
  * @since 2.7
  */
-public class NestedAttributeIterator implements Iterator<ComplexAttribute> {
+public class NestedAttributeIterator implements Iterator<Attribute> {
 
     private IMappingFeatureIterator iterator;
-	private ComplexAttribute parentElement;
+	private Attribute parentElement;
 
 	public NestedAttributeIterator(IMappingFeatureIterator iterator,
-			ComplexAttribute parentElement) {
+			Attribute parentElement) {
     	this.iterator = iterator;
     	this.parentElement = parentElement;
 	}
@@ -63,15 +65,26 @@ public class NestedAttributeIterator implements Iterator<ComplexAttribute> {
 	}
 
 	@Override
-	public ComplexAttribute next() {
+	public Attribute next() {
 		// TODO Auto-generated method stub
 		Feature feature = iterator.next();
 		// will this make a copy?
-		ComplexAttribute wrapper = parentElement;
-		ArrayList<Feature> featureList = new ArrayList<Feature>();
-		featureList.add(feature);
-		wrapper.setValue(featureList);
-		return wrapper;
+		Attribute wrapper = parentElement;
+		if (wrapper instanceof ComplexAttribute) {
+  		    ArrayList<Feature> featureList = new ArrayList<Feature>();
+		    featureList.add(feature);
+		    wrapper.setValue(featureList);
+		} else {
+			Collection<Property> properties = feature.getProperties();
+			if (!properties.isEmpty()) {
+				Property prop = properties.iterator().next();
+				Object value = prop.getValue();
+				if (value != null) {
+					wrapper.setValue(value);
+				}
+			}
+		}
+		return wrapper;	
 	}
 
 	@Override

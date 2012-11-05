@@ -93,12 +93,12 @@ public class NestedAttributeExpression extends AttributeExpressionImpl {
         return getValues(((Feature)object), rootMapping, fullSteps);
     }
     
-    private List<Object> getValues(ComplexAttribute f2, NestedAttributeMapping nestedMapping,
+    private List<Object> getValues(Attribute att, NestedAttributeMapping nestedMapping,
             StepList steps) {
         List<Object> values = new ArrayList<Object>();
-        FeatureTypeMapping nextFMapping;
+        FeatureTypeMapping nextFMapping;        
         try {
-            nextFMapping = nestedMapping.getFeatureTypeMapping(f2);
+            nextFMapping = nestedMapping.getFeatureTypeMapping(att);
         } catch (IOException e) {
             nextFMapping = null;
         }
@@ -110,15 +110,15 @@ public class NestedAttributeExpression extends AttributeExpressionImpl {
             throw new UnsupportedOperationException("FeatureTypeMapping not found for " + attPath
                     + ". Please revise PropertyName in your filter!");
         }
-        List<ComplexAttribute> nestedFeatures = new ArrayList<ComplexAttribute>();
+        List<Attribute> nestedFeatures = new ArrayList<Attribute>();
         if (nestedMapping.isSameSource()) {
             // same root/database row, different mappings, used in
             // polymorphism
-            nestedFeatures.add(f2);
+            nestedFeatures.add(att);
         } else {
             // get nested features
             try {
-                Iterator<? extends ComplexAttribute> it = getNestedFeatures(f2, nestedMapping, nextFMapping);
+                Iterator<? extends Attribute> it = getNestedFeatures(att, nestedMapping, nextFMapping);
                 while (it.hasNext()) {
                 	nestedFeatures.add(it.next());
                 }
@@ -141,7 +141,7 @@ public class NestedAttributeExpression extends AttributeExpressionImpl {
             newSteps = steps.subList(0, steps.size() - 1);
             if (newSteps.size() == 1) {
                 // special case for client property for this NestedAttributeMapping
-                for (ComplexAttribute f : nestedFeatures) {
+                for (Attribute f : nestedFeatures) {
                     values.addAll(getClientProperties(nestedMapping, f));
                 }
             }
@@ -180,7 +180,7 @@ public class NestedAttributeExpression extends AttributeExpressionImpl {
                 if (!nestedMappings.isEmpty()) {
                     for (NestedAttributeMapping mapping : nestedMappings) {
                         if (newSteps.startsWith(mapping.getTargetXPath())) {
-                            for (ComplexAttribute f : nestedFeatures) {
+                            for (Attribute f : nestedFeatures) {
                                 // loop to this method
                                 values.addAll(getValues(f, mapping, newSteps));
                             }
@@ -201,12 +201,12 @@ public class NestedAttributeExpression extends AttributeExpressionImpl {
                             // if it's an xlink href,
                             // ignore nested attribute mappings as the values should come from
                             // nested features.. so should be evaluated at the next call
-                            for (ComplexAttribute f : nestedFeatures) {
+                            for (Attribute f : nestedFeatures) {
                                 values.addAll(getClientProperties(attMapping, f));
                             }
                         }
                     } else {
-                        for (ComplexAttribute f : nestedFeatures) {
+                        for (Attribute f : nestedFeatures) {
                             values.add(getValue(attMapping.getSourceExpression(), f));
                         }
                     }
@@ -233,7 +233,7 @@ public class NestedAttributeExpression extends AttributeExpressionImpl {
         return steps.get(steps.size() - 1).isXmlAttribute();
     }
     
-    private List<Object> getClientProperties(AttributeMapping attMapping, ComplexAttribute f) {
+    private List<Object> getClientProperties(AttributeMapping attMapping, Attribute f) {
         List<Object> values = new ArrayList<Object>();
         Step lastStep = getLastStep();        
         Expression exp = getClientPropertyExpression(attMapping, lastStep);
@@ -262,7 +262,7 @@ public class NestedAttributeExpression extends AttributeExpressionImpl {
      * @return list of nested features
      * @throws IOException
      */
-    private Iterator<? extends ComplexAttribute> getNestedFeatures(ComplexAttribute f2, NestedAttributeMapping nestedMapping, FeatureTypeMapping fMapping) throws IOException {
+    private Iterator<? extends Attribute> getNestedFeatures(Attribute f2, NestedAttributeMapping nestedMapping, FeatureTypeMapping fMapping) throws IOException {
         Object fTypeName = nestedMapping.getNestedFeatureType(f2);
         if (fTypeName == null || !(fTypeName instanceof Name)) {
             return null;
@@ -282,7 +282,7 @@ public class NestedAttributeExpression extends AttributeExpressionImpl {
         }
     }
 
-    private Object getValue(Expression expression, ComplexAttribute f) {
+    private Object getValue(Expression expression, Attribute f) {
         Object value = expression.evaluate(f);
 
         return extractAttributeValue(value);
