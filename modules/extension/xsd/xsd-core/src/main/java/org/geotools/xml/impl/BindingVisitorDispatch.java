@@ -38,8 +38,7 @@ public class BindingVisitorDispatch {
         if (object instanceof ComplexAttribute) {
             MismatchedBindingFinder finder = new MismatchedBindingFinder(object);
             bindingWalker.walk(component, finder, container, context);
-            if (finder.foundMismatchedBinding() 
-            		|| ((ComplexAttribute)object).getProperty("Nested_Features") != null) {
+            if (finder.foundMismatchedBinding()) {
                 // if a mismatched binding is found, just visit xs:anyType binding
                 visitor.visit(bindingWalker.getAnyTypeBinding());
                 return;

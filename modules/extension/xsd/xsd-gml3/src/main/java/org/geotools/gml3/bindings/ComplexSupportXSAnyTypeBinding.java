@@ -126,29 +126,7 @@ public class ComplexSupportXSAnyTypeBinding extends XSAnyTypeBinding {
     @SuppressWarnings("unchecked")
     @Override
     public List getProperties(Object object, XSDElementDeclaration element) throws Exception {
-    	List<Object[/* 2 */]> properties = new ArrayList<Object[/* 2 */]>();
-    	// maybe create a new binding?
-    	if (object instanceof ComplexAttribute) {
-    		ComplexAttribute parent = (ComplexAttribute) object;
-    		if (parent.getProperty("Nested_Features")!= null) {
-    			Object nestedfeatures = parent.getProperty("Nested_Features").getValue();
-    			XSDElementDeclaration childElem = (XSDElementDeclaration) parent.getProperty("Nested_Features").getUserData().get(XSDElementDeclaration.class);
-    			
-    			XSDParticle substitutedChildParticle = XSDFactory.eINSTANCE
-                        .createXSDParticle();
-    			substitutedChildParticle.setMaxOccurs(-1);
-//                substitutedChildParticle.setMaxOccurs(parent.getDescriptor().getMaxOccurs());
-                substitutedChildParticle.setMinOccurs(parent.getDescriptor().getMinOccurs());
-                XSDElementDeclaration wrapper = XSDFactory.eINSTANCE
-                        .createXSDElementDeclaration();
-                wrapper
-                        .setResolvedElementDeclaration(childElem);
-                substitutedChildParticle.setContent(wrapper);
-                
-    			properties.add(new Object[] { substitutedChildParticle, nestedfeatures });
-    		}
-    	}
-        
+        List<Object[/* 2 */]> properties = new ArrayList<Object[/* 2 */]>();
         XSDTypeDefinition typeDef = element.getTypeDefinition();
         boolean isAnyType = typeDef.getName() != null && typeDef.getTargetNamespace() != null
                 && typeDef.getName().equals(XS.ANYTYPE.getLocalPart())
@@ -345,41 +323,41 @@ public class ComplexSupportXSAnyTypeBinding extends XSAnyTypeBinding {
      * @param att
      *            The complex attribute itself
      */
-//    private void checkXlinkHref(Object value, ComplexAttribute att) {
-//        if (value != null && value instanceof ComplexAttribute) {
-//            ComplexAttribute object = (ComplexAttribute) value;
-//            // Only worry about features for now, as non feature types don't get ids encoded yet.
-//            // See GEOS-3738. To encode xlink:href to an id that doesn't exist in the doc is wrong
-//            if (!(object.getType() instanceof FeatureTypeImpl)) {
-//                // we are checking the type, not the object as FeatureImpl, because they could still
-//                // be non-features that are constructed as features for the purpose of feature
-//                // chaining.
-//                return;
-//            }
-//            Identifier ident = object.getIdentifier();
-//            if (ident == null) {
-//                return;
-//            }
-//            String id = Converters.convert(ident.getID(), String.class);
-//            if (idSet.idExists(id)) {
-//                // XSD type ids can only appear once in the same document, otherwise the document is
-//                // not schema valid. Attributes of the same ids should be encoded as xlink:href to
-//                // the existing attribute.
-//                Object clientProperties = att.getUserData().get(Attributes.class);
-//                Map<Name, Object> map = null;
-//                if (clientProperties == null) {
-//                    map = new HashMap<Name, Object>();
-//                    att.getUserData().put(Attributes.class, map);
-//                } else {
-//                    map = (Map<Name, Object>) clientProperties;
-//                }
-//                map.put(toTypeName(XLINK.HREF), "#" + id.toString());
-//                // make sure the value is not encoded
-//                att.setValue(Collections.emptyList());
-//            }
-//        }
-//        return;
-//    }
+    private void checkXlinkHref(Object value, ComplexAttribute att) {
+        if (value != null && value instanceof ComplexAttribute) {
+            ComplexAttribute object = (ComplexAttribute) value;
+            // Only worry about features for now, as non feature types don't get ids encoded yet.
+            // See GEOS-3738. To encode xlink:href to an id that doesn't exist in the doc is wrong
+            if (!(object.getType() instanceof FeatureTypeImpl)) {
+                // we are checking the type, not the object as FeatureImpl, because they could still
+                // be non-features that are constructed as features for the purpose of feature
+                // chaining.
+                return;
+            }
+            Identifier ident = object.getIdentifier();
+            if (ident == null) {
+                return;
+            }
+            String id = Converters.convert(ident.getID(), String.class);
+            if (idSet.idExists(id)) {
+                // XSD type ids can only appear once in the same document, otherwise the document is
+                // not schema valid. Attributes of the same ids should be encoded as xlink:href to
+                // the existing attribute.
+                Object clientProperties = att.getUserData().get(Attributes.class);
+                Map<Name, Object> map = null;
+                if (clientProperties == null) {
+                    map = new HashMap<Name, Object>();
+                    att.getUserData().put(Attributes.class, map);
+                } else {
+                    map = (Map<Name, Object>) clientProperties;
+                }
+                map.put(toTypeName(XLINK.HREF), "#" + id.toString());
+                // make sure the value is not encoded
+                att.setValue(Collections.emptyList());
+            }
+        }
+        return;
+    }
 
     /**
      * @see org.geotools.xml.AbstractComplexBinding#encode(java.lang.Object, org.w3c.dom.Document,
@@ -389,10 +367,10 @@ public class ComplexSupportXSAnyTypeBinding extends XSAnyTypeBinding {
     public Element encode(Object object, Document document, Element value) throws Exception {
         if (object instanceof ComplexAttribute) {
             ComplexAttribute complex = (ComplexAttribute) object;
-//            if (complex.getProperties().size() == 1) {
-//                Property prop = complex.getProperties().iterator().next();
-//                checkXlinkHref(prop, complex);
-//            }
+            if (complex.getProperties().size() == 1) {
+                Property prop = complex.getProperties().iterator().next();
+                checkXlinkHref(prop, complex);
+            }
             GML3EncodingUtils.encodeClientProperties(complex, value);
             GML3EncodingUtils.encodeSimpleContent(complex, document, value);
         }
