@@ -110,15 +110,15 @@ public class FilteringMappingFeatureIterator extends DataAccessMappingFeatureIte
         }
         return matches;
     }    
-    
-    @Override
-    protected FeatureIterator<? extends Feature> getSourceFeatureIterator() {
-    	try {
-			return super.getFilteredSources(currentFeatureId);
-		} catch (IOException e) {
-			throw new RuntimeException(e);
-		}
-    }
+//    
+//    @Override
+//    protected FeatureIterator<? extends Feature> getSourceFeatureIterator() {
+//    	try {
+//			return super.getFilteredSources(currentFeatureId);
+//		} catch (IOException e) {
+//			throw new RuntimeException(e);
+//		}
+//    }
     
 //    /**
 //     * Reproject source features if reprojection is set in the query. This has to be done after filtering, so 

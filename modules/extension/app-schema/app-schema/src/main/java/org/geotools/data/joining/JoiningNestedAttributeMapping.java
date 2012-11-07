@@ -304,10 +304,11 @@ public class JoiningNestedAttributeMapping extends NestedAttributeMapping {
                             + featureTypeName);
         }
 
+        Iterator sourceIterator = null;
+        
         if (featureIterator != null) {
-
-            featureIterator.setGroupingForeignIds(idValues);
-            
+        	featureIterator.setGroupingForeignIds(idValues);
+        	sourceIterator = new XlinkSourceIterator(featureIterator, nestedSourceExpression, foreignKeyValue);
 //            while (featureIterator.hasNext()
 //                    && featureIterator.peekNextValue(nestedSourceExpression).toString()
 //                            .equals(foreignKeyValue.toString())
@@ -336,7 +337,7 @@ public class JoiningNestedAttributeMapping extends NestedAttributeMapping {
         }
         instance.skipped.add(new Instance.Skip(idValues));
 
-        return featureIterator;
+        return sourceIterator;
     }
 
     /**

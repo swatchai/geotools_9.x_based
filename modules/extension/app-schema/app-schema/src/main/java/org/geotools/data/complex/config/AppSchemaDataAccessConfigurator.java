@@ -405,7 +405,7 @@ public class AppSchemaDataAccessConfigurator {
                         expectedInstanceOf, isMultiValued, clientProperties);
             }
 
-            attMapping.setDescriptors(root, ff, descriptorFactory, elemToTargetNodeType); 
+            attMapping.setDescriptors(root, descriptorFactory, elemToTargetNodeType); 
             
             if (expectedInstanceOf != null) {
             	Name elemName = Types.toTypeName(targetXPathSteps.get(targetXPathSteps.size() - 1).getName());

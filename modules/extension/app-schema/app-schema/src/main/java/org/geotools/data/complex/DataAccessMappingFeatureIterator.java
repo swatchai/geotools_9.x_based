@@ -132,6 +132,8 @@ public class DataAccessMappingFeatureIterator extends AbstractMappingFeatureIter
 
 	private List<Object> groupingForeignIds;
 
+	private boolean isBuildingXlinkHref;
+
     public DataAccessMappingFeatureIterator(AppSchemaDataAccess store, FeatureTypeMapping mapping,
             Query query, boolean isFiltered) throws IOException {  	
 
@@ -140,6 +142,7 @@ public class DataAccessMappingFeatureIterator extends AbstractMappingFeatureIter
         if (isFiltered) {
             filteredFeatures = new ArrayList<String>();
         }
+        this.isBuildingXlinkHref = false;
     }
     
     public DataAccessMappingFeatureIterator(AppSchemaDataAccess store, FeatureTypeMapping mapping,
@@ -215,13 +218,13 @@ public class DataAccessMappingFeatureIterator extends AbstractMappingFeatureIter
             LOGGER.finest("no more features, produced " + featureCounter);
             close();
             curSrcFeature = null;
+        } else {
+        	if (this.groupingForeignIds != null && !checkForeignIdValues(groupingForeignIds)) {
+            	return false;
+            }
         }
 
-        setHasNextCalled(true);
-        
-        if (this.groupingForeignIds != null && !checkForeignIdValues(groupingForeignIds)) {
-        	return false;
-        }
+        setHasNextCalled(true);              
 
         return exists;
     }
@@ -812,7 +815,11 @@ public class DataAccessMappingFeatureIterator extends AbstractMappingFeatureIter
             // Make sure the same value isn't already set
             // in case it comes from a denormalized view for many-to-many relationship.
             // (1) Get the first existing value
-            Collection<Property> existingAttributes = getProperties((ComplexAttribute) target, xpath);
+            Collection<Property> existingAttributes = null;
+            
+            if (target instanceof ComplexAttribute) {
+            	existingAttributes = getProperties((ComplexAttribute) target, xpath);
+            }
             boolean exists = false;
 
             if (existingAttributes != null) {
@@ -930,7 +937,9 @@ public class DataAccessMappingFeatureIterator extends AbstractMappingFeatureIter
         
         FeatureIterator<? extends Feature> iterator = matchingFeatures.features();
 
-        filteredFeatures.add(fId);
+        if (filteredFeatures != null) {
+            filteredFeatures.add(fId);
+        }
 
         return iterator;
     }
@@ -966,15 +975,45 @@ public class DataAccessMappingFeatureIterator extends AbstractMappingFeatureIter
 		while (sources.hasNext()) {
 			source = sources.next();
 
-			if (extractIdForFeature(source).equals(id)
-					&& checkForeignIdValues(groupingForeignIds, source)) {
-				break;
-			}
+//			if (extractIdForFeature(source).equals(id)
+//					&& checkForeignIdValues(groupingForeignIds, source)) {
+//				break;
+//			}
 			for (AttributeMapping attMapping : selectedMapping) {
 				skipNestedMapping(attMapping, source);
 			}
 
 		}
+        
+    }
+    
+    public Feature getNextXlinkSource() throws IOException {
+        setHasNextCalled(false);
+        
+//        String id = extractIdForFeature(curSrcFeature);
+        
+//        FeatureIterator sources = getSourceFeatureIterator();
+//        
+//		Feature source;
+//		if (sources.hasNext()) {
+			Feature source;
+			
+			if (curSrcFeature != null) {
+				source = curSrcFeature;
+				curSrcFeature = null;
+			} else {
+  			    source = getSourceFeatureIterator().next();
+			}
+//			if (extractIdForFeature(source).equals(id)
+//					&& checkForeignIdValues(groupingForeignIds, source)) {
+//				break;
+//			}
+			for (AttributeMapping attMapping : selectedMapping) {
+				skipNestedMapping(attMapping, source);
+			}
+			return source;
+//		}
+		
         
     }
     
@@ -1469,5 +1508,9 @@ public class DataAccessMappingFeatureIterator extends AbstractMappingFeatureIter
 
 	public void setGroupingForeignIds(List<Object> idValues) {
 		this.groupingForeignIds = idValues;
+	}
+
+	public void setXlinkHrefMode(boolean b) {
+		this.isBuildingXlinkHref = b;
 	}
 }

@@ -213,7 +213,6 @@ public class AttributeMapping {
     }
     
 	public void setDescriptors(AttributeDescriptor parentDescriptor,
-			FilterFactory ff,
 			UniqueNameFeatureTypeFactoryImpl descriptorFactory,
 			Map<Name, AttributeType> elemToTargetNodeType) {
 		descriptors = new ArrayList<AttributeDescriptor>();
