@@ -22,6 +22,7 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 import java.util.logging.Logger;
 import org.geotools.data.DataSourceException;
 import org.geotools.data.Query;
@@ -201,7 +202,9 @@ public abstract class AbstractMappingFeatureIterator implements IMappingFeatureI
         	} else {
         		singleValuedMapping.add(attMapping);
         	}
-        }
+        }       
+        
+        
     }    
 
     protected boolean skipTopElement(Name topElement, AttributeMapping attMapping,
@@ -462,8 +465,9 @@ public abstract class AbstractMappingFeatureIterator implements IMappingFeatureI
     protected abstract Feature computeNext() throws IOException;   
 
     public abstract boolean hasNext();
-    
-//    public abstract int size();
-    
+
+	public int size() {
+		return this.featureCounter;
+	}
     
 }

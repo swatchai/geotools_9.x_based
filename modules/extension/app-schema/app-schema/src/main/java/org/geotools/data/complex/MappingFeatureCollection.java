@@ -63,14 +63,11 @@ public class MappingFeatureCollection implements FeatureCollection<FeatureType, 
     
     private Filter unrolledFilter = null;
 
-	private int size;
-
     public MappingFeatureCollection(AppSchemaDataAccess store, FeatureTypeMapping mapping,
             Query query) {
         this.store = store;
         this.mapping = mapping;
         this.query = query;
-        this.size = 0;
     }
     
     public void setUnrolledFilter(Filter unrolledFilter) {
@@ -262,14 +259,7 @@ public class MappingFeatureCollection implements FeatureCollection<FeatureType, 
      */
     public Iterator<Feature> iterator() {
         try {
-            Iterator<Feature> iterator = MappingFeatureIteratorFactory.getInstance(store, mapping, query, unrolledFilter);
-//            if (iterator instanceof AbstractMappingFeatureIterator) {
-//            	int noOfFeatures = ((AbstractMappingFeatureIterator) iterator).size();
-//            	if (noOfFeatures > 0) {
-//            		this.size = noOfFeatures;
-//            	}
-//            }
-            return iterator;
+            return MappingFeatureIteratorFactory.getInstance(store, mapping, query, unrolledFilter);
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
@@ -327,8 +317,9 @@ public class MappingFeatureCollection implements FeatureCollection<FeatureType, 
      * 
      * @see org.geotools.feature.FeatureCollection#size()
      */
-    public int size() {    	  
-        return size;
+    public int size() {
+      //VT: The only way to count the size of the feature is by building it and that becomes very inefficient.     
+          return 0;
      
     }
 

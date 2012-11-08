@@ -27,6 +27,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.TimeUnit;
 
 import javax.xml.namespace.QName;
 
@@ -134,6 +135,10 @@ public class DataAccessMappingFeatureIterator extends AbstractMappingFeatureIter
 
 	private boolean isBuildingXlinkHref;
 
+	private long millis;
+	
+	private long cleanmillis;
+
     public DataAccessMappingFeatureIterator(AppSchemaDataAccess store, FeatureTypeMapping mapping,
             Query query, boolean isFiltered) throws IOException {  	
 
@@ -215,6 +220,16 @@ public class DataAccessMappingFeatureIterator extends AbstractMappingFeatureIter
         }
 
         if (!exists) {
+    		System.out.println(String.format("Building %d features in app-schema took: %d millis", 
+    				featureCounter,
+            	    TimeUnit.MILLISECONDS.toMillis(millis)
+            	));
+    		
+    		System.out.println(String.format("Cleaning empty elements for %d features in app-schema took: %d millis", 
+    				featureCounter,
+            	    TimeUnit.MILLISECONDS.toMillis(cleanmillis)
+            	));
+        	
             LOGGER.finest("no more features, produced " + featureCounter);
             close();
             curSrcFeature = null;
@@ -597,16 +612,27 @@ public class DataAccessMappingFeatureIterator extends AbstractMappingFeatureIter
 				return null;
 			}
 
-			if (attDescriptor.getMaxOccurs() == 1) {
+//			String attName = (xpath.size() == 1) ? xpath.get(0).getName().getLocalPart() : null;
+			// create separate method for this
+			if (attDescriptor.getMaxOccurs() == 1 || !attMapping.isMultiValued()) {
 				// single value, evaluate now so the encoder can encode
 				// correctly, since it evaluates maxOccurs
 				// use while so it would close itself when it reaches the end
 				if (nestedFeatures.hasNext()) {
-					values = nestedFeatures.next();
+					instance = nestedFeatures.next();
 				}
 				if (nestedFeatures instanceof FeatureIterator) {
   				    ((FeatureIterator) nestedFeatures).close();
 				}
+//			} else if (attName != null && ("name".equals(attName) || "description".equals(attName) || "boundedBy".equals(attName) || "location".equals(attName)
+//						|| "metaDataProperty".equals(attName))) {
+//					while (nestedFeatures.hasNext()) {
+//						values = nestedFeatures.next();
+//					}
+//					if (nestedFeatures instanceof FeatureIterator) {
+//	  				    ((FeatureIterator) nestedFeatures).close();
+//					}
+				
 			} else {
 				// TODO: create special method
 				// TODO: fix the descriptor with correct type
@@ -628,23 +654,26 @@ public class DataAccessMappingFeatureIterator extends AbstractMappingFeatureIter
 //		            target.setValue(newValue);
 //				}
 				instance = this.attf.createNestedAttribute(attDescriptor, id, (Iterator<Attribute>) nestedFeatures);
-				XSDElementDeclaration elemDecl = (XSDElementDeclaration) attDescriptor.getUserData()
-				.get(XSDElementDeclaration.class);
-		instance.getUserData().put(XSDElementDeclaration.class,
-				elemDecl);
-		// so it won't get skipped in cleanEmptyElements()
-		instance.getDescriptor().getUserData()
-				.put("encodeIfEmpty", true);
-		Object existingValue = target.getValue();
-		if (existingValue != null) {
-			Collection existingProps = (Collection) existingValue;
-			List newValue = new ArrayList();
-            newValue.addAll(existingProps);
-            newValue.add(instance);
-            target.setValue(newValue);
-		}
 			}
-        }
+			if (instance != null) {
+
+				XSDElementDeclaration elemDecl = (XSDElementDeclaration) attDescriptor
+						.getUserData().get(XSDElementDeclaration.class);
+				instance.getUserData().put(XSDElementDeclaration.class,
+						elemDecl);
+				// so it won't get skipped in cleanEmptyElements()
+				instance.getDescriptor().getUserData()
+						.put("encodeIfEmpty", true);
+				Object existingValue = target.getValue();
+				if (existingValue != null) {
+					Collection existingProps = (Collection) existingValue;
+					List newValue = new ArrayList();
+					newValue.addAll(existingProps);
+					newValue.add(instance);
+					target.setValue(newValue);
+				}
+			}
+		} else {
 //        if (values instanceof Collection) {
             // nested feature type could have multiple instances as the whole purpose
             // of feature chaining is to cater for multi-valued properties
@@ -670,7 +699,7 @@ public class DataAccessMappingFeatureIterator extends AbstractMappingFeatureIter
 //                
 //            }
 //        } else {
-		if (!isNestedFeature && instance == null) {
+
 			if (values instanceof Attribute) {
 				// copy client properties from input features if they're complex
 				// features
@@ -693,10 +722,6 @@ public class DataAccessMappingFeatureIterator extends AbstractMappingFeatureIter
 						.put("encodeIfEmpty", true);
 			}
 		}
-		
-			
-		
-        
 
         return instance;
     }
@@ -772,6 +797,7 @@ public class DataAccessMappingFeatureIterator extends AbstractMappingFeatureIter
             }
             Attribute instance = xpathAttributeBuilder.set(target, prefixedXpath, null, id,
                     type, false, null, nestedMapping.getDescriptors());
+            if (instance != null) {
             setClientProperties(instance, source, clientPropsMappings);
             for (AttributeMapping mapping : polymorphicMappings) {
                 if (skipTopElement(polymorphicTypeName, mapping, type)) {
@@ -781,6 +807,7 @@ public class DataAccessMappingFeatureIterator extends AbstractMappingFeatureIter
                     continue;
                 }
                 setAttributeValue(instance, null, source, mapping, null, null, selectedProperties.get(mapping));
+            }
             }
             return instance;
         }
@@ -982,8 +1009,8 @@ public class DataAccessMappingFeatureIterator extends AbstractMappingFeatureIter
 			for (AttributeMapping attMapping : selectedMapping) {
 				skipNestedMapping(attMapping, source);
 			}
-
 		}
+		curSrcFeature = null;
         
     }
     
@@ -1063,6 +1090,8 @@ public class DataAccessMappingFeatureIterator extends AbstractMappingFeatureIter
     }
 
     protected Feature computeNext() throws IOException {
+    	
+    	long start = System.currentTimeMillis();
 
         String id = getNextFeatureId();
         Feature target = attf.createFeature(null, targetFeature, id);
@@ -1142,12 +1171,22 @@ public class DataAccessMappingFeatureIterator extends AbstractMappingFeatureIter
 		setListAttributes(target, listFeatures);
 		listFeatures = null;
 
+
+
+		long end = System.currentTimeMillis();
+//		
+		millis += (end - start);
+		
+		start = System.currentTimeMillis();
 		cleanEmptyElements(target);
+		cleanmillis += System.currentTimeMillis() - start;
 		
 		if (!nextIdFound) {
 			curSrcFeature = null;
 		}
+		
 
+		
 		return target;
     }
     

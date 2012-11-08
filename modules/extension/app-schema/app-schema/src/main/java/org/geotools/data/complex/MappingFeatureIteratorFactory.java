@@ -20,6 +20,7 @@ package org.geotools.data.complex;
 import java.io.IOException;
 import java.util.Iterator;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 import java.util.logging.Logger;
 
 import org.geotools.data.FeatureSource;
@@ -108,7 +109,6 @@ public class MappingFeatureIteratorFactory {
 
     public static IMappingFeatureIterator getInstance(AppSchemaDataAccess store,
             FeatureTypeMapping mapping, Query query, Filter unrolledFilter) throws IOException {
-
         if (mapping instanceof XmlFeatureTypeMapping) {
             return new XmlMappingFeatureIterator(store, mapping, query);
         }        
@@ -230,6 +230,7 @@ public class MappingFeatureIteratorFactory {
             }
             // END OF HACK
         }
+        
         return iterator;
     }
 
