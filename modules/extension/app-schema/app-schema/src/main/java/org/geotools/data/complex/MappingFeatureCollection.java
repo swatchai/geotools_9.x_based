@@ -160,7 +160,10 @@ public class MappingFeatureCollection implements FeatureCollection<FeatureType, 
      * 
      * @see org.geotools.feature.FeatureCollection#close(java.util.Iterator)
      */
-    public void close(Iterator<Feature> close) {
+    public void close(Iterator close) {
+    	if (close instanceof NestedAttributeIterator) {
+    		((NestedAttributeIterator)close).close();
+    	}
         ((IMappingFeatureIterator) close).close();
     }
 

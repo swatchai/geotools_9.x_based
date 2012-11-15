@@ -283,6 +283,10 @@ public abstract class AbstractMappingFeatureIterator implements IMappingFeatureI
     public void close() {
         closeSourceFeatures();
     }
+    
+    public boolean isAvailable() {
+    	return this.getSourceFeatureIterator() != null;
+    }
 
     /**
      * Based on the set of xpath expression/id extracting expression, finds the ID for the attribute
@@ -325,7 +329,7 @@ public abstract class AbstractMappingFeatureIterator implements IMappingFeatureI
      * @see java.util.Iterator#next()
      */
     public Feature next() {      
-        if (!hasNext()) {
+        if (!hasNextCalled && !hasNext()) {
             throw new IllegalStateException("there are no more features in this iterator");
         }
 

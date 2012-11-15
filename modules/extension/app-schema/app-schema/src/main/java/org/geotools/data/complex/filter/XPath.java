@@ -746,7 +746,7 @@ public class XPath {
 		AttributeDescriptor descriptor;
 		int stepIndex = steps.size() - 1;
 		Attribute parent = target;
-		boolean leafBuilt = false;
+//		boolean leafBuilt = false;
 //		while (!leafBuilt && stepIndex > -1) {
 
 			if (stepIndex == 0) {
@@ -760,8 +760,8 @@ public class XPath {
 					leafAttribute = setValue(descriptor, id, userValue, target,
 							targetNodeType, isXlinkRef);
 				}
-
-				leafBuilt = true;
+//
+//				leafBuilt = true;
 			} else {
 				// get parent of leaf attribute
 				AttributeExpressionImpl ex = new AttributeExpressionImpl(steps

@@ -21,6 +21,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Iterator;
 
+import org.geotools.data.complex.IMappingFeatureIterator;
 import org.geotools.feature.type.GeometryDescriptorImpl;
 import org.geotools.feature.type.GeometryTypeImpl;
 import org.opengis.feature.Attribute;
@@ -188,8 +189,32 @@ public class AppSchemaFeatureFactoryImpl extends ValidatingFeatureFactoryImpl {
         }
     }
     
-    public ComplexAttribute createNestedAttribute(AttributeDescriptor descriptor,  String id, Iterator<Attribute> nestedFeatures) {
-    	return new NestedAttributeImpl(descriptor, buildSafeFeatureId(id), nestedFeatures);
+    public ComplexAttribute createNestedAttribute(AttributeDescriptor descriptor,  String id, 
+    		IMappingFeatureIterator nestedFeatures, Attribute wrapper) {
+    	return new NestedAttributeImpl(descriptor, buildSafeFeatureId(id), nestedFeatures, wrapper);
+    }
+    
+    public Attribute clone(Attribute attribute) {
+    	Attribute clone;
+    	String id = (attribute.getIdentifier() == null) ?  null : attribute.getIdentifier().toString();
+    	if (attribute instanceof Feature) {
+    		Object value = attribute.getValue();
+    		Collection values = (value == null) ? new ArrayList<Property>() : (Collection)value;
+    		clone = this.createFeature(values, attribute.getDescriptor(), id);
+    	} else if (attribute instanceof ComplexAttribute) {
+    		Object value = attribute.getValue();
+    		Collection values = (value == null) ? new ArrayList<Property>() : (Collection)value;
+    		clone = this.createComplexAttribute(values,
+    				attribute.getDescriptor(), id);
+    	} else if (attribute instanceof GeometryAttribute) {
+    		clone = this.createGeometryAttribute(attribute.getValue(), (GeometryDescriptor) attribute.getDescriptor(), id,
+    				((GeometryAttribute)attribute).getType().getCoordinateReferenceSystem());
+    	} else {
+    		clone = this.createAttribute(attribute.getValue(), attribute.getDescriptor(), id);
+    	}
+    	clone.getUserData().putAll(attribute.getUserData());
+    	
+    	return attribute;
     }
 
 }

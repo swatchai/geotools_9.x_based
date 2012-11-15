@@ -7,6 +7,8 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
+import org.geotools.data.complex.IMappingFeatureIterator;
+import org.geotools.data.complex.NestedAttributeIterator;
 import org.geotools.data.complex.NestedFeaturesCollection;
 import org.opengis.feature.Attribute;
 import org.opengis.feature.ComplexAttribute;
@@ -20,12 +22,13 @@ import org.opengis.filter.identity.Identifier;
 
 public class NestedAttributeImpl extends ComplexAttributeImpl implements Collection<Attribute> {
 
-	private Iterator<Attribute> iterator;
+	private NestedAttributeIterator iterator;
 
 	public NestedAttributeImpl(
-			AttributeDescriptor descriptor, Identifier id, Iterator<Attribute> nestedFeatures) {
+			AttributeDescriptor descriptor, Identifier id, IMappingFeatureIterator nestedFeatures,
+			Attribute wrapper) {
 		super(new ArrayList<Property>(), descriptor, id);
-		this.iterator = nestedFeatures;
+		this.iterator = new NestedAttributeIterator(nestedFeatures, wrapper);
 	}
 	
 	@Override
@@ -44,7 +47,12 @@ public class NestedAttributeImpl extends ComplexAttributeImpl implements Collect
     }
     
 	@Override
-    public Property getProperty(String name) {        
+    public Property getProperty(String name) {  
+        return null;
+    }
+	
+	@Override
+    public Property getProperty(Name name) {   
         return null;
     }
 
@@ -124,5 +132,10 @@ public class NestedAttributeImpl extends ComplexAttributeImpl implements Collect
 	public boolean addAll(Collection<? extends Attribute> c) {
 		// TODO Auto-generated method stub
 		return false;
+	}
+
+	public void addIterator(IMappingFeatureIterator nestedFeatures, Attribute parentElement) {
+		// TODO Auto-generated method stub
+		this.iterator.add(nestedFeatures, parentElement);
 	}
 }

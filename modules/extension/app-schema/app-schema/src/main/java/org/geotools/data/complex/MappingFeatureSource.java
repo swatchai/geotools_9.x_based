@@ -34,6 +34,7 @@ import org.geotools.data.joining.JoiningQuery;
 import org.geotools.feature.FeatureCollection;
 import org.geotools.feature.FeatureIterator;
 import org.geotools.geometry.jts.ReferencedEnvelope;
+import org.opengis.feature.Attribute;
 import org.opengis.feature.Feature;
 import org.opengis.feature.type.AttributeDescriptor;
 import org.opengis.feature.type.FeatureType;
@@ -202,5 +203,4 @@ public class MappingFeatureSource implements FeatureSource<FeatureType, Feature>
     public QueryCapabilities getQueryCapabilities() {
         return new QueryCapabilities();
     }
-
 }

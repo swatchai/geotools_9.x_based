@@ -59,7 +59,6 @@ import org.xml.sax.helpers.NamespaceSupport;
  * @source $URL$
  */
 public class JoiningNestedAttributeMapping extends NestedAttributeMapping {
-
     /**
      * Instance that holds temporary data for going through the features, for each 'caller' (any
      * object going through the features) there is one.
@@ -315,24 +314,14 @@ public class JoiningNestedAttributeMapping extends NestedAttributeMapping {
 //                    && featureIterator.checkForeignIdValues(idValues)) {
 //                matchingFeatures.addAll(featureIterator.skip());
 //            }
-        }
-
-        // skip all others
+        }       
+        
+     // skip all others
         for (Name name : instance.featureIterators.keySet()) {
             DataAccessMappingFeatureIterator fIt = instance.featureIterators.get(name);
-			if (fIt != featureIterator) {
-				if (foreignKeyValue instanceof Collection) {
-					Iterator fKeys = ((Collection) foreignKeyValue).iterator();
-					while (fKeys.hasNext()) {
-						skipFeatures(fIt,
-								instance.nestedSourceExpressions.get(name),
-								fKeys.next(), idValues);
-					}
-				} else {
-					skipFeatures(fIt,
-							instance.nestedSourceExpressions.get(name),
-							foreignKeyValue, idValues);
-				}
+            if (fIt != featureIterator) {
+                skipFeatures(fIt, instance.nestedSourceExpressions.get(name), foreignKeyValue,
+                        idValues);
             }
         }
         instance.skipped.add(new Instance.Skip(idValues));
@@ -354,7 +343,7 @@ public class JoiningNestedAttributeMapping extends NestedAttributeMapping {
     @Override
     public Iterator<? extends Attribute> getFeatures(Object caller, Object foreignKeyValue, List<Object> idValues,
             CoordinateReferenceSystem reprojection, Object feature,
-            List<PropertyName> selectedProperties, boolean includeMandatory, Attribute nestedFeaturesElement) throws IOException {
+            List<PropertyName> selectedProperties, boolean includeMandatory) throws IOException {
 
         if (isSameSource()) {
             // if linkField is null, this method shouldn't be called because the mapping
@@ -389,40 +378,17 @@ public class JoiningNestedAttributeMapping extends NestedAttributeMapping {
                     "Internal error: nested source expression expected but found "
                             + featureTypeName);
         }
-        
-//        if (featureIterator != null) {
-//            while (featureIterator.hasNext() && featureIterator.checkForeignIdValues(idValues)) {
-//                matchingFeatures.add(featureIterator.next());
-//            }
-//        }
-
-        // skip all others
-		for (Name name : instance.featureIterators.keySet()) {
-			DataAccessMappingFeatureIterator fIt = instance.featureIterators
-					.get(name);
-			if (fIt != featureIterator) {
-				if (foreignKeyValue instanceof Collection) {
-					Iterator fKeys = ((Collection) foreignKeyValue).iterator();
-					while (fKeys.hasNext()) {
-						skipFeatures(fIt,
-								instance.nestedSourceExpressions.get(name),
-								fKeys.next(), idValues);
-					}
-				} else {
-					skipFeatures(fIt,
-							instance.nestedSourceExpressions.get(name),
-							foreignKeyValue, idValues);
-				}
-			}
-		}
+     // skip all others
+        for (Name name : instance.featureIterators.keySet()) {
+            DataAccessMappingFeatureIterator fIt = instance.featureIterators.get(name);
+            if (fIt != featureIterator) {
+                skipFeatures(fIt, instance.nestedSourceExpressions.get(name), foreignKeyValue,
+                        idValues);
+            }
+        }
         instance.skipped.add(new Instance.Skip(idValues));
 
-		if (nestedFeaturesElement != null) {
-			return new NestedAttributeIterator(featureIterator,
-					nestedFeaturesElement);
-		} else {
-			return featureIterator;
-		}
+		return featureIterator;
         
     }
 
@@ -435,7 +401,7 @@ public class JoiningNestedAttributeMapping extends NestedAttributeMapping {
             featureIterator.skip();
         }
     }
-
+    
     /**
      * If we have decided not to build the parent feature, we need to skip all rows that were
      * returned to build it

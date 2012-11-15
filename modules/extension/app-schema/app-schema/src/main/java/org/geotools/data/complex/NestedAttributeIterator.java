@@ -20,10 +20,14 @@ package org.geotools.data.complex;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
 
 import org.geotools.data.Query;
 import org.geotools.data.complex.filter.XPath.StepList;
+import org.geotools.feature.AppSchemaFeatureFactoryImpl;
 import org.geotools.feature.Types;
 import org.opengis.feature.Attribute;
 import org.opengis.feature.ComplexAttribute;
@@ -48,39 +52,73 @@ import org.opengis.feature.type.Name;
  * @since 2.7
  */
 public class NestedAttributeIterator implements Iterator<Attribute> {
+	
+	class IteratorToWrapper {
 
-    private IMappingFeatureIterator iterator;
-	private Attribute parentElement;
+		IMappingFeatureIterator iterator;
+		Attribute parentElement;
+		
+		public IteratorToWrapper(IMappingFeatureIterator iterator2,
+				Attribute parentElement2) {
+			this.iterator = iterator2;
+			this.parentElement = parentElement2;
+		}
+	}
+
+    private List<IteratorToWrapper> iterators;
+    
+    private AppSchemaFeatureFactoryImpl ff;
 
 	public NestedAttributeIterator(IMappingFeatureIterator iterator,
 			Attribute parentElement) {
-    	this.iterator = iterator;
-    	this.parentElement = parentElement;
+		this.iterators = new ArrayList<IteratorToWrapper>();
+		this.iterators.add(
+				new IteratorToWrapper(iterator, parentElement));
+		this.ff = new AppSchemaFeatureFactoryImpl();
+	}
+	
+	public void add(IMappingFeatureIterator iterator,
+			Attribute parentElement) {
+		this.iterators.add(
+				new IteratorToWrapper(iterator, parentElement));
 	}
 
 	@Override
-	public boolean hasNext() {
-		// TODO Auto-generated method stub
-		return iterator.hasNext();
+	public boolean hasNext() {	
+		for (IteratorToWrapper pair : iterators) {
+			if (pair.iterator.hasNext()) {
+				return true;
+			}
+		}
+		return false;
 	}
 
 	@Override
 	public Attribute next() {
 		// TODO Auto-generated method stub
-		Feature feature = iterator.next();
-		// will this make a copy?
-		Attribute wrapper = parentElement;
-		if (wrapper instanceof ComplexAttribute) {
-  		    ArrayList<Feature> featureList = new ArrayList<Feature>();
-		    featureList.add(feature);
-		    wrapper.setValue(featureList);
-		} else {
-			Collection<Property> properties = feature.getProperties();
-			if (!properties.isEmpty()) {
-				Property prop = properties.iterator().next();
-				Object value = prop.getValue();
-				if (value != null) {
-					wrapper.setValue(value);
+		Feature feature = null;
+		Attribute wrapper = null;
+		for (IteratorToWrapper pair : iterators) {
+			if (pair.iterator.hasNext()) {
+				// if it's been closed, it would get the next one
+				feature = pair.iterator.next();
+				wrapper = ff.clone(pair.parentElement);
+				break;
+			}
+		}
+		if (wrapper != null) {
+			if (wrapper instanceof ComplexAttribute) {
+				ArrayList<Feature> featureList = new ArrayList<Feature>();
+				featureList.add(feature);
+				wrapper.setValue(featureList);
+			} else {
+				Collection<Property> properties = feature.getProperties();
+				if (!properties.isEmpty()) {
+					Property prop = properties.iterator().next();
+					Object value = prop.getValue();
+					if (value != null) {
+						wrapper.setValue(value);
+					}
 				}
 			}
 		}
@@ -91,5 +129,9 @@ public class NestedAttributeIterator implements Iterator<Attribute> {
 	public void remove() {
 		// TODO Auto-generated method stub
 		throw new UnsupportedOperationException("NestedAttributeIterator.remove() not supported!");
+	}
+
+	public void close() {
+		iterators = null;
 	}
 }

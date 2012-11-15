@@ -87,4 +87,10 @@ public class PostFilteringMappingFeatureIterator implements IMappingFeatureItera
         
     }
 
+	@Override
+	public boolean isAvailable() {
+		// TODO Auto-generated method stub
+		return next != null;
+	}
+
 }
