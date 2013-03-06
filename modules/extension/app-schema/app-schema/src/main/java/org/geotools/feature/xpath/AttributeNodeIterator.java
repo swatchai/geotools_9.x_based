@@ -17,13 +17,19 @@
 
 package org.geotools.feature.xpath;
 
+import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
+import java.util.Iterator;
 import java.util.List;
 
 import org.apache.commons.jxpath.ri.QName;
 import org.apache.commons.jxpath.ri.model.NodeIterator;
 import org.apache.commons.jxpath.ri.model.NodePointer;
+import org.geotools.data.complex.NestedAttributeIterator;
+import org.geotools.feature.NestedAttributeCollection;
+import org.geotools.feature.NestedAttributeImpl;
 import org.opengis.feature.Attribute;
 import org.opengis.feature.ComplexAttribute;
 import org.opengis.feature.Property;
@@ -54,7 +60,9 @@ public class AttributeNodeIterator implements NodeIterator {
      */
     ComplexAttribute feature;
 
-    List<Property> children;
+    Iterator<? extends Property> children;
+    
+    Name name;
 
     /**
      * current position
@@ -64,23 +72,35 @@ public class AttributeNodeIterator implements NodeIterator {
     public AttributeNodeIterator(AttributeNodePointer pointer) {
         this.pointer = pointer;
         feature = (ComplexAttribute) pointer.getImmediateNode();
-        children = new ArrayList<Property>(feature.getValue());
+        children = feature.getValue().iterator();
         position = 1;
     }
 
     public AttributeNodeIterator(AttributeNodePointer pointer, Name name) {
         this.pointer = pointer;
+        this.name = name;
         feature = (ComplexAttribute) pointer.getImmediateNode();
-
-        AttributeDescriptor descriptor = feature.getDescriptor();
-        Name attName = descriptor == null ? feature.getType().getName() : descriptor.getName();
+        setIterator();
+    }
+    
+    private void setIterator() {
+    	AttributeDescriptor descriptor = feature.getDescriptor();
+    	Name attName = descriptor == null ? feature.getType().getName() : descriptor.getName();
         if (attName.equals(name)) {
-            children = Collections.<Property>singletonList(feature);
+            children = Collections.<Property>singletonList(feature).iterator();
         } else {
-            children = new ArrayList<Property>(feature.getProperties(name));
+			if (feature instanceof NestedAttributeImpl) {
+				try {
+					children = ((NestedAttributeImpl) feature).iterator(name);
+				} catch (IOException e) {
+					children = null;
+				}
+			} else {
+				Collection<Property> properties = feature.getProperties(name);
+				children = properties.iterator();
+			}
         }
-
-        position = children.size() > 0 ? 1 : 0;
+        position = (children != null && children.hasNext()) ? 1 : 0;
     }
 
     public int getPosition() {
@@ -88,12 +108,20 @@ public class AttributeNodeIterator implements NodeIterator {
     }
 
     public boolean setPosition(int position) {
-        this.position = position;
-        return position <= children.size();
+    	if ((this.position == (position - 1)) && children.hasNext()) {
+    		this.position++;
+    	}
+    	if (this.position == position) {
+    		return true;
+    	}    	
+//    	if (children instanceof NestedAttributeIterator) {
+//    		((NestedAttributeIterator) children).close();
+//    	}
+    	return false;
     }
 
     public NodePointer getNodePointer() {
-        Attribute attribute = (Attribute) children.get(position - 1);
+        Attribute attribute = (Attribute) children.next();        
         Name name = attribute.getDescriptor().getName();
         QName qname = new QName(name.getNamespaceURI(), name.getLocalPart());
         return new AttributeNodePointer(pointer, attribute, qname);

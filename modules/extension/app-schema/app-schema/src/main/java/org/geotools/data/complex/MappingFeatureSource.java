@@ -30,11 +30,11 @@ import org.geotools.data.FeatureSource;
 import org.geotools.data.Query;
 import org.geotools.data.QueryCapabilities;
 import org.geotools.data.ResourceInfo;
+import org.geotools.data.complex.config.AppSchemaDataAccessConfigurator;
 import org.geotools.data.joining.JoiningQuery;
 import org.geotools.feature.FeatureCollection;
 import org.geotools.feature.FeatureIterator;
 import org.geotools.geometry.jts.ReferencedEnvelope;
-import org.opengis.feature.Attribute;
 import org.opengis.feature.Feature;
 import org.opengis.feature.type.AttributeDescriptor;
 import org.opengis.feature.type.FeatureType;
@@ -83,7 +83,7 @@ public class MappingFeatureSource implements FeatureSource<FeatureType, Feature>
     }
     
     private Query namedQuery(Filter filter, int countLimit) {
-        return namedQuery(filter, countLimit, false);
+        return namedQuery(filter, countLimit, AppSchemaDataAccessConfigurator.isJoining());
     }
 
     private Query namedQuery(Filter filter, int countLimit, boolean isJoining) {
@@ -203,4 +203,5 @@ public class MappingFeatureSource implements FeatureSource<FeatureType, Feature>
     public QueryCapabilities getQueryCapabilities() {
         return new QueryCapabilities();
     }
+
 }

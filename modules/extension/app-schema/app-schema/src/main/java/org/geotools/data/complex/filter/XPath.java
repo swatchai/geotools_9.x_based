@@ -153,7 +153,7 @@ public class XPath {
     public static class StepList extends CheckedArrayList<Step> {
         private static final long serialVersionUID = -5612786286175355862L;
 
-        private StepList() {
+        public StepList() {
             super(XPath.Step.class);
         }
 
@@ -746,8 +746,8 @@ public class XPath {
 		AttributeDescriptor descriptor;
 		int stepIndex = steps.size() - 1;
 		Attribute parent = target;
-//		boolean leafBuilt = false;
-//		while (!leafBuilt && stepIndex > -1) {
+		boolean leafBuilt = false;
+		while (!leafBuilt && stepIndex > -1) {
 
 			if (stepIndex == 0) {
 				if (steps.size() > 1) {
@@ -761,7 +761,7 @@ public class XPath {
 							targetNodeType, isXlinkRef);
 				}
 //
-//				leafBuilt = true;
+				leafBuilt = true;
 			} else {
 				// get parent of leaf attribute
 				AttributeExpressionImpl ex = new AttributeExpressionImpl(steps
@@ -770,6 +770,7 @@ public class XPath {
 				exValue = ex.evaluate(target);
 
 				if (exValue != null) {
+					leafBuilt = true;
 					if (exValue instanceof Collection) {
 						// multi valued property
 						Collection values = (Collection) exValue;
@@ -808,8 +809,8 @@ public class XPath {
 					
 
 				}
-//			}
-//			stepIndex--;
+			}
+			stepIndex--;
 		}
 
 		return leafAttribute;
@@ -945,9 +946,34 @@ public class XPath {
             // adapt value to context
             convertedValue = convertValue(descriptor, value);   
         }
-                
-        Attribute leafAttribute = null;
         final Name attributeName = descriptor.getName();    
+                
+        		Attribute leafAttribute = null;
+                if (parent instanceof ComplexAttribute) {
+                    Object currStepValue = ((ComplexAttribute) parent).getProperties(attributeName);
+                    if (currStepValue instanceof Collection) {
+                        List<Attribute> values = new ArrayList((Collection) currStepValue);
+                        if (!values.isEmpty()) {
+                            if (!isEmpty(convertedValue)) {  
+                            	for (Attribute existingValue : values) {
+                            		if (convertedValue.equals(existingValue.getValue())) {
+                            			// this is a duplicate
+                            			return null;
+                            		}
+                                } 
+                            } else {
+                            	// check for xlink:href
+                            }
+                        }
+                    } else if (currStepValue instanceof Attribute) {
+                    	if (((Attribute)currStepValue).getValue() != null
+                    			&& ((Attribute)currStepValue).getValue().equals(convertedValue)) {
+                    		// eliminate duplicate
+                    		return null;
+                    	}
+                    }
+    }
+        
 //            if (crs != null) {
 //                builder.setCRS(crs);
 //            }
@@ -955,12 +981,13 @@ public class XPath {
             // check for mapped type override
 //            builder.setType(parent.getType());
 
-            if (parent.getType().getName().equals(XSSchema.ANYTYPE_TYPE.getName())) {
-                    // special handling for casting any type since there's no attributes in its
-                    // schema
-                    leafAttribute = builder.addAnyTypeValue(convertedValue, targetNodeType,
-                            descriptor, id, crs);
-            } else if (descriptor.getType().getName().equals(XSSchema.ANYTYPE_TYPE.getName())
+//            if (parent.getType().getName().equals(XSSchema.ANYTYPE_TYPE.getName())) {
+//                    // special handling for casting any type since there's no attributes in its
+//                    // schema
+//                    leafAttribute = builder.addAnyTypeValue(convertedValue, targetNodeType,
+//                            descriptor, id, crs);
+//            } else 
+            	if (descriptor.getType().getName().equals(XSSchema.ANYTYPE_TYPE.getName())
                     && (value == null || (value instanceof Collection && ((Collection) value)
                             .isEmpty()))) {
                 // casting anyType as a complex attribute so we can set xlink:href
@@ -985,6 +1012,7 @@ public class XPath {
         if (simpleContentProperties != null) {
             mergeClientProperties(leafAttribute, simpleContentProperties);
         }
+        
         return leafAttribute;
     }
 
@@ -1033,7 +1061,7 @@ public class XPath {
      *            Map of new client properties
      */
     @SuppressWarnings("unchecked")
-    private void mergeClientProperties(Attribute leafAttribute,
+    public static void mergeClientProperties(Attribute leafAttribute,
             Map<Object, Object> simpleContentProperties) {
 
         Map<Object, Object> origData = leafAttribute.getUserData();

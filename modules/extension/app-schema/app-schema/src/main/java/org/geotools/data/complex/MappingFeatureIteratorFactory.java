@@ -36,9 +36,6 @@ import org.geotools.filter.FilterCapabilities;
 import org.geotools.filter.visitor.DefaultFilterVisitor;
 import org.geotools.jdbc.JDBCFeatureSource;
 import org.geotools.jdbc.JDBCFeatureStore;
-import org.opengis.feature.Attribute;
-import org.opengis.feature.ComplexAttribute;
-import org.opengis.feature.Feature;
 import org.opengis.feature.type.AttributeDescriptor;
 import org.opengis.filter.Filter;
 import org.opengis.filter.expression.PropertyName;
@@ -109,6 +106,7 @@ public class MappingFeatureIteratorFactory {
 
     public static IMappingFeatureIterator getInstance(AppSchemaDataAccess store,
             FeatureTypeMapping mapping, Query query, Filter unrolledFilter) throws IOException {
+
         if (mapping instanceof XmlFeatureTypeMapping) {
             return new XmlMappingFeatureIterator(store, mapping, query);
         }        
@@ -186,7 +184,7 @@ public class MappingFeatureIteratorFactory {
                 if (isListFilter == null) {
                 // END OF HACK
                     if (filter != null && filter != Filter.INCLUDE) {
-                        iterator = new PostFilteringMappingFeatureIterator(iterator, filter,
+                        iterator = new PostFilteringMappingFeatureIterator((DataAccessMappingFeatureIterator) iterator, filter,
                             maxFeatures);
                     }
                 }
@@ -230,7 +228,6 @@ public class MappingFeatureIteratorFactory {
             }
             // END OF HACK
         }
-        
         return iterator;
     }
 
@@ -252,12 +249,5 @@ public class MappingFeatureIteratorFactory {
         }
         return capabilities;
     }
-
-	public static NestedAttributeIterator getInstance(AppSchemaDataAccess store,
-			FeatureTypeMapping mapping, Query query, Filter unrolledFilter,
-			Attribute parentElement) throws IOException {
-		IMappingFeatureIterator iterator = getInstance(store, mapping, query, unrolledFilter);
-		return new NestedAttributeIterator(iterator, parentElement);
-	}
 
 }

@@ -17,10 +17,17 @@
 
 package org.geotools.data.complex;
 
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.List;
 import java.util.NoSuchElementException;
 
+import org.geotools.data.joining.JoiningNestedAttributeMapping;
 import org.geotools.feature.FeatureIterator;
+import org.geotools.feature.NestedAttributeImpl;
 import org.opengis.feature.Feature;
+import org.opengis.feature.Property;
 import org.opengis.filter.Filter;
 
 /**
@@ -34,40 +41,110 @@ import org.opengis.filter.Filter;
  */
 public class PostFilteringMappingFeatureIterator implements IMappingFeatureIterator {
 
-    protected FeatureIterator<Feature> delegate;
+//	private List<DataAccessMappingFeatureIterator> nestedFeatures;
+    protected DataAccessMappingFeatureIterator delegate;
+    protected DataAccessMappingFeatureIterator filteringIterator;
     protected Feature next;
     protected Filter filter;
     protected int maxFeatures;
     protected int count = 0;
     
-    public PostFilteringMappingFeatureIterator(FeatureIterator<Feature> iterator, Filter filter, int maxFeatures) {
+    public PostFilteringMappingFeatureIterator(DataAccessMappingFeatureIterator iterator, Filter filter, int maxFeatures) throws IOException {
         this.delegate = iterator;
         this.filter = filter;
         this.maxFeatures = maxFeatures;
-        next = getFilteredNext();
+        this.filteringIterator = new DataAccessMappingFeatureIterator(iterator);
+
+			// make a copy of nested feature iterators since evaluating filters
+			// requires building the nested features
+			// and since the order is important for joining, we shouldn't
+			// disrupt the original nested feature iterator
+			// for encoding
+//			this.nestedFeatures = new ArrayList<DataAccessMappingFeatureIterator>();
+//			for (AttributeMapping attMapping : ((AbstractMappingFeatureIterator) delegate).selectedMapping) {
+//				if (attMapping instanceof JoiningNestedAttributeMapping) {
+//					((JoiningNestedAttributeMapping) attMapping).open(this, ((AbstractMappingFeatureIterator)delegate).query);					
+//				}
+//			}
+	
+
+//        next = getFilteredNext();
     }
 
     public void close() {
-        delegate.close();        
+
+//        if (delegate instanceof AbstractMappingFeatureIterator) {
+//			for (AttributeMapping attMapping : ((AbstractMappingFeatureIterator) delegate).selectedMapping) {
+//				if (attMapping instanceof JoiningNestedAttributeMapping) {
+//					((JoiningNestedAttributeMapping) attMapping).close(this);
+//					// close the children too
+//				}
+//			}
+//		}
+        delegate.close(); 
+        delegate = null;
+        
+        filteringIterator.close();
+        filteringIterator = null;
+        
+        next = null;
+        filter = null;
+//		if (nestedFeatures != null) {
+//			for (DataAccessMappingFeatureIterator iterator : nestedFeatures) {
+//				iterator.close();
+//			}
+//			this.nestedFeatures = null;
+//		}
     } 
   
     protected Feature getFilteredNext() {
-        while (delegate.hasNext() && count < maxFeatures) {
-            Feature feature = delegate.next();
+        while (filteringIterator.hasNext() && count < maxFeatures) {            
+            delegate.hasNext();
+            Feature filteredNext = filteringIterator.next();
             try {
-                if (filter.evaluate(feature)) {
-                    return feature;
+                if (filter.evaluate(filteredNext)) {
+//            	if (filter.evaluate(next)) {
+                    return delegate.next();
                 }
             } catch (NullPointerException e) {
                 // ignore this exception
                 // this is to cater the case if the attribute has no value and 
                 // has been skipped in the delegate DataAccessMappingFeatureIterator
             }
+            try {
+            	// if doesn't match, skip
+				delegate.skip();
+			} catch (IOException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+            
         }
+//        for (Property prop : next.getProperties()) {
+//        	// reset the nested features cursor position
+//        	if (prop instanceof NestedAttributeImpl) {
+//        		try {
+//					((NestedAttributeImpl)prop).resetIterator();
+//				} catch (IOException e) {
+//					// throw exception.. failed to reset iterator
+//					// TODO Auto-generated catch block
+//					e.printStackTrace();
+//				}
+//        	}
+//        }
+//        if (delegate instanceof AbstractMappingFeatureIterator) {
+//        	// reset the nested features cursor position
+//        	for (AttributeMapping attMapping : ((AbstractMappingFeatureIterator) delegate).selectedMapping) {
+//        		if (attMapping instanceof JoiningNestedAttributeMapping) {
+//        			((JoiningNestedAttributeMapping) attMapping).reset(delegate);
+//        		}
+//    		}       
+//        }
         return null;
     }
 
     public boolean hasNext() {    
+    	next = getFilteredNext();
         return next != null;
     }
         
@@ -77,9 +154,10 @@ public class PostFilteringMappingFeatureIterator implements IMappingFeatureItera
         }
         
         count++;
-        Feature current = next;
-        next = getFilteredNext();
-        return current;
+//        Feature current = next;
+//        next = getFilteredNext();
+//        return current;
+        return next;
     }
 
     public void remove() {

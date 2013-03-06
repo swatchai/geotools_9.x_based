@@ -106,7 +106,7 @@ public class FilteringMappingFeatureIterator extends DataAccessMappingFeatureIte
                 throw new RuntimeException(e);
             }
             // reset so next time we call hasNext, it will get the next row
-            setHasNextCalled(false);            
+            setNextSrc(false);            
         }
         return matches;
     }    

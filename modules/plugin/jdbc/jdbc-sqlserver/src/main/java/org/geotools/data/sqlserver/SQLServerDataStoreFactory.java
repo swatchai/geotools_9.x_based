@@ -78,19 +78,31 @@ public class SQLServerDataStoreFactory extends JDBCDataStoreFactory {
         parameters.put(INTSEC.key, INTSEC);
         parameters.put(GEOMETRY_METADATA_TABLE.key, GEOMETRY_METADATA_TABLE);
     }
-    
     /**
      *  Builds up the JDBC url in a jdbc:<database>://<host>:<port>;DatabaseName=<dbname>
      */
     @SuppressWarnings("unchecked")
     @Override
     protected String getJDBCUrl(Map params) throws IOException {
-        String url = super.getJDBCUrl(params);
-        String db = (String) DATABASE.lookUp(params);
+    	// jdbc url
+        String host = (String) HOST.lookUp(params);
+//        Integer port = (Integer) PORT.lookUp(params);
+        String db = (String) super.DATABASE.lookUp(params);
+        
+        String url = "jdbc:" + getDatabaseID() + "://" + host;
+//        if ( port != null ) {
+//            url += ":" + port;
+//        }
+        
+        if ( db != null ) {
+            url += "/" + db; 
+        }
+        db = (String) DATABASE.lookUp(params);
         Boolean intsec = (Boolean) INTSEC.lookUp(params);
         if (db != null) {
-            url = url.substring(0, url.lastIndexOf("/")) + (db != null ? ";DatabaseName="+db : "");
+            url = url.substring(0, url.lastIndexOf("/")) + (db != null ? ";instanceName=MSSQL2008;database="+db : ";");
         }
+        
 
         if (intsec != null && intsec.booleanValue()) {
         	url = url + ";integratedSecurity=true";

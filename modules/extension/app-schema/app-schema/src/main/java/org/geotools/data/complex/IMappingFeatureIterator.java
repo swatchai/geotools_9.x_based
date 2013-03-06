@@ -17,7 +17,9 @@
 
 package org.geotools.data.complex;
 
+import java.io.IOException;
 import java.util.Iterator;
+import java.util.List;
 
 import org.geotools.feature.AppSchemaFeatureFactoryImpl;
 import org.geotools.feature.AttributeBuilder;
@@ -34,5 +36,5 @@ import org.opengis.feature.Feature;
  */
 public interface IMappingFeatureIterator extends Iterator<Feature>, FeatureIterator<Feature> {
 	
-	boolean isAvailable();
+	boolean isAvailable();	
 }

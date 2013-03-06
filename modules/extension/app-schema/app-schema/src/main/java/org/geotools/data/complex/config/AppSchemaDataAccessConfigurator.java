@@ -356,6 +356,7 @@ public class AppSchemaDataAccessConfigurator {
             // if the data source is a data access, the input XPath expression is the source
             // expression
             final Expression sourceExpression; 
+            // does this not cater for polymorphic sourceexpression..
 
             sourceExpression = (inputXPath == null) ? parseOgcCqlExpression(sourceExpr)
                     : new AttributeExpressionImpl(inputXPath, new Hints(

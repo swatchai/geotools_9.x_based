@@ -435,7 +435,7 @@ public class XmlMappingFeatureIterator extends DataAccessMappingFeatureIterator 
         }
     }
 
-    protected boolean unprocessedFeatureExists() {
+    public boolean unprocessedFeatureExists() {
         if (indexCounter <= count) {
             return true;
         } else {
@@ -512,7 +512,7 @@ public class XmlMappingFeatureIterator extends DataAccessMappingFeatureIterator 
      */
     @Override
     public boolean hasNext() {
-        if (isHasNextCalled()) {
+        if (getNextSrc()) {
             return !isNextSourceFeatureNull();
         }
                 
@@ -530,9 +530,7 @@ public class XmlMappingFeatureIterator extends DataAccessMappingFeatureIterator 
         if (!exists) {        
             LOGGER.finest("no more features, produced " + featureCounter);
             close();
-        }
-        
-        setHasNextCalled(true);
+        }              
         
         return exists;
     }
@@ -540,7 +538,8 @@ public class XmlMappingFeatureIterator extends DataAccessMappingFeatureIterator 
     @Override
     protected Feature computeNext() throws IOException {     
         Feature f = populateFeatureData();
-        super.cleanEmptyElements(f);        
+        super.cleanEmptyElements(f);      
+        setNextSrc(true);
         return f;
     }
 }

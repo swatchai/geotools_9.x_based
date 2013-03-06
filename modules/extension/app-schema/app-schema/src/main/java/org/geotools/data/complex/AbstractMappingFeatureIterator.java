@@ -91,7 +91,7 @@ public abstract class AbstractMappingFeatureIterator implements IMappingFeatureI
     /**
      * Mappings after Property Selection is applied
      */
-    protected List<AttributeMapping> selectedMapping;
+    public List<AttributeMapping> selectedMapping;
     
     /**
      * Selected Properties for Feature Chaining
@@ -124,17 +124,21 @@ public abstract class AbstractMappingFeatureIterator implements IMappingFeatureI
 	protected AttributeDescriptor targetFeature;
 
     /**
-     * True if hasNext has been called prior to calling next()
+     * True if next has been called after calling hasNext
      */
-    private boolean hasNextCalled = false;
+    private boolean getNextSrc = true;
+    
+    protected boolean isList;
 
-	protected List<AttributeMapping> listMapping;
-
-	protected List<AttributeMapping> multiValuedMapping;
-
-	protected List<AttributeMapping> singleValuedMapping;
+//	protected List<AttributeMapping> listMapping;
+//
+//	protected List<AttributeMapping> multiValuedMapping;
+//
+//	protected List<AttributeMapping> singleValuedMapping;
 
 	protected AttributeBuilder builder;
+
+	protected Query query;
 
     
     public AbstractMappingFeatureIterator(AppSchemaDataAccess store, FeatureTypeMapping mapping,
@@ -151,7 +155,7 @@ public abstract class AbstractMappingFeatureIterator implements IMappingFeatureI
             Query query, Query unrolledQuery) throws IOException {
         this.store = store;
         this.attf = new AppSchemaFeatureFactoryImpl();
-
+        this.query = query;
         this.mapping = mapping;
         
         namespaces = mapping.getNamespaces();
@@ -173,6 +177,7 @@ public abstract class AbstractMappingFeatureIterator implements IMappingFeatureI
         if (unrolledQuery==null) {
             unrolledQuery = getUnrolledQuery(query);
         }
+        
         builder = new AttributeBuilder(this.attf);
         xpathAttributeBuilder = new XPath(builder);
         xpathAttributeBuilder.setFeatureFactory(attf);
@@ -182,9 +187,9 @@ public abstract class AbstractMappingFeatureIterator implements IMappingFeatureI
         
 
         // Divide the multi-valued mapping for different handlings in computeNext()
-        listMapping = new ArrayList<AttributeMapping>();
-        multiValuedMapping = new ArrayList<AttributeMapping>();
-        singleValuedMapping = new ArrayList<AttributeMapping>();
+//        listMapping = new ArrayList<AttributeMapping>();
+//        multiValuedMapping = new ArrayList<AttributeMapping>();
+//        singleValuedMapping = new ArrayList<AttributeMapping>();
         
         final Name targetNodeName = targetFeature.getName();
 //        builder = new AttributeBuilder(attf);
@@ -196,16 +201,26 @@ public abstract class AbstractMappingFeatureIterator implements IMappingFeatureI
                 // as it was already set
                 continue;
             } else if (attMapping.isList()) {
-        		listMapping.add(attMapping);
-        	} else if (attMapping.isMultiValued()) {
-        		multiValuedMapping.add(attMapping);
-        	} else {
-        		singleValuedMapping.add(attMapping);
+            	isList = true;//        		listMapping.add(attMapping);
+			} else if (attMapping.isMultiValued()) {
+				if (attMapping.getDescriptors()
+						.get(attMapping.getDescriptors().size() - 1)
+						.getMaxOccurs() == 1) {
+					throw new RuntimeException(
+							attMapping.getTargetXPath().toString()
+									+ " has maxOccurs = 1 in the schema but is wrongly configured with isMultiple in the mapping file for "
+									+ targetNodeName + " element.");
+				}
+//        		multiValuedMapping.add(attMapping);
+//        	} else {
+//        		singleValuedMapping.add(attMapping);
         	}
-        }       
-        
-        
+        }                    
     }    
+    
+    public Query getQuery() {
+    	return query;
+    }
 
     protected boolean skipTopElement(Name topElement, AttributeMapping attMapping,
             AttributeType type) {
@@ -315,12 +330,12 @@ public abstract class AbstractMappingFeatureIterator implements IMappingFeatureI
         return store.unrollQuery(query, mapping);
     }
 
-    protected boolean isHasNextCalled() {
-        return hasNextCalled;
+    protected boolean getNextSrc() {
+        return getNextSrc;
     }
     
-    protected void setHasNextCalled(boolean hasNextCalled) {
-        this.hasNextCalled = hasNextCalled;
+    protected void setNextSrc(boolean isNextCalled) {
+        this.getNextSrc = isNextCalled;
     }
     
     /**
@@ -329,7 +344,7 @@ public abstract class AbstractMappingFeatureIterator implements IMappingFeatureI
      * @see java.util.Iterator#next()
      */
     public Feature next() {      
-        if (!hasNextCalled && !hasNext()) {
+        if (getNextSrc && !hasNext()) {
             throw new IllegalStateException("there are no more features in this iterator");
         }
 
@@ -342,7 +357,7 @@ public abstract class AbstractMappingFeatureIterator implements IMappingFeatureI
         }
         ++featureCounter;        
         
-        setHasNextCalled(false);
+        setNextSrc(true);
                 
         return next;
     }
@@ -445,6 +460,10 @@ public abstract class AbstractMappingFeatureIterator implements IMappingFeatureI
                 target.setValue(geom);
             }
         }
+    }
+    
+    public AttributeDescriptor getTargetFeature() {
+    	return this.targetFeature;
     }
     
     protected abstract void closeSourceFeatures();

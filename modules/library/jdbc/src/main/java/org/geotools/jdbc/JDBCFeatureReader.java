@@ -30,6 +30,7 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
+import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -137,7 +138,19 @@ public class JDBCFeatureReader implements  FeatureReader<SimpleFeatureType, Simp
         st.setFetchSize(featureSource.getDataStore().getFetchSize());
         
         ((BasicSQLDialect)featureSource.getDataStore().getSQLDialect()).onSelect(st, cx, featureType);
+        
+        System.out.println("Query:\n" +sql.toString());
+        
+        long startTime = System.currentTimeMillis();
         rs = st.executeQuery(sql);
+        long endTime = System.currentTimeMillis();
+        long millis = endTime - startTime;
+        System.out.println(String.format("Query took: %d min, %d sec, %d millis", 
+        	    TimeUnit.MILLISECONDS.toMinutes(millis),
+        	    TimeUnit.MILLISECONDS.toSeconds(millis),
+        	    TimeUnit.MILLISECONDS.toMillis(millis) - 
+        	    TimeUnit.MINUTES.toSeconds(TimeUnit.MILLISECONDS.toMinutes(millis))
+        	));
     }
     
     public JDBCFeatureReader( PreparedStatement st, Connection cx, JDBCFeatureSource featureSource, SimpleFeatureType featureType, Hints hints ) 
@@ -150,7 +163,18 @@ public class JDBCFeatureReader implements  FeatureReader<SimpleFeatureType, Simp
         this.st = st;
         
         ((PreparedStatementSQLDialect)featureSource.getDataStore().getSQLDialect()).onSelect(st, cx, featureType);
+        
+        System.out.println("Query:\n" + st.toString());
+        long startTime = System.currentTimeMillis();
         rs = st.executeQuery();
+        long endTime = System.currentTimeMillis();
+        long millis = endTime - startTime;
+        System.out.println(String.format("Query took: %d min, %d sec, %d millis", 
+        	    TimeUnit.MILLISECONDS.toMinutes(millis),
+        	    TimeUnit.MILLISECONDS.toSeconds(millis),
+        	    TimeUnit.MILLISECONDS.toMillis(millis) - 
+        	    TimeUnit.MINUTES.toSeconds(TimeUnit.MILLISECONDS.toMinutes(millis))
+        	));
     }
     
     public JDBCFeatureReader(ResultSet rs, Connection cx, int offset, JDBCFeatureSource featureSource, 

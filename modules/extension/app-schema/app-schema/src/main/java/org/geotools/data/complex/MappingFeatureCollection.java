@@ -20,6 +20,7 @@ package org.geotools.data.complex;
 import java.io.IOException;
 import java.util.Collection;
 import java.util.Iterator;
+import java.util.List;
 
 import org.geotools.data.Query;
 import org.geotools.data.crs.ReprojectFeatureResults;
@@ -163,8 +164,9 @@ public class MappingFeatureCollection implements FeatureCollection<FeatureType, 
     public void close(Iterator close) {
     	if (close instanceof NestedAttributeIterator) {
     		((NestedAttributeIterator)close).close();
+    	} else {
+            ((IMappingFeatureIterator) close).close();
     	}
-        ((IMappingFeatureIterator) close).close();
     }
 
     /*
@@ -370,12 +372,12 @@ public class MappingFeatureCollection implements FeatureCollection<FeatureType, 
         return this.query;
     }
 
-	public NestedAttributeIterator iterator(Attribute nestedFeaturesElement) {
-		try {
-            return MappingFeatureIteratorFactory.getInstance(store, mapping, query, unrolledFilter, nestedFeaturesElement);
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
-	}
+//	public NestedAttributeIterator iterator(Attribute nestedFeaturesElement, List<Object> foreignIds) {
+//		try {
+//            return MappingFeatureIteratorFactory.getInstance(store, mapping, query, unrolledFilter, nestedFeaturesElement, foreignIds);
+//        } catch (IOException e) {
+//            throw new RuntimeException(e);
+//        }
+//	}
 
 }

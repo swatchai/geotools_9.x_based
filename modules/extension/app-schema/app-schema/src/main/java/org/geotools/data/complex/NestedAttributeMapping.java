@@ -34,12 +34,16 @@ import org.geotools.factory.Hints;
 import org.geotools.feature.FeatureCollection;
 import org.geotools.feature.FeatureIterator;
 import org.geotools.feature.Types;
+import org.geotools.feature.type.GeometryTypeImpl;
 import org.geotools.filter.FilterFactoryImplNamespaceAware;
 import org.geotools.util.Converters;
 import org.opengis.feature.Attribute;
 import org.opengis.feature.ComplexAttribute;
 import org.opengis.feature.Feature;
+import org.opengis.feature.type.AttributeDescriptor;
 import org.opengis.feature.type.FeatureType;
+import org.opengis.feature.type.GeometryDescriptor;
+import org.opengis.feature.type.GeometryType;
 import org.opengis.feature.type.Name;
 import org.opengis.filter.Filter;
 import org.opengis.filter.FilterFactory;
@@ -156,7 +160,7 @@ public class NestedAttributeMapping extends AttributeMapping {
      * @throws IOException
      * @throws IOException
      */
-    public Iterator<Feature> getInputFeatures(Object caller, Object foreignKeyValue,
+    public Iterator<? extends Attribute> getInputFeatures(Object caller, Object foreignKeyValue,
             List<Object> idValues, Object feature, CoordinateReferenceSystem reprojection,
             List<PropertyName> selectedProperties, boolean includeMandatory) throws IOException {
         if (isSameSource()) {
@@ -205,7 +209,30 @@ public class NestedAttributeMapping extends AttributeMapping {
                 
         return getFilteredFeatures(foreignKeyValue, isMultiple);        
     }
-    
+//    
+//    @Override
+//    public List<AttributeDescriptor> getDescriptors() {
+//    	List<AttributeDescriptor> descriptors = super.getDescriptors();
+//    	AttributeDescriptor last = descriptors.get(descriptors.size() - 1);
+//    	if (last instanceof GeometryDescriptor) {
+//    		GeometryType geomType = ((GeometryDescriptor)last).getType();
+//    		
+//    		GeometryType newGeomType = new GeometryTypeImpl(geomType.getName(),
+//					geomType.getBinding(), crs, geomType.isIdentified(),
+//					geomType.isAbstract(), geomType.getRestrictions(),
+//					geomType.getSuper(), geomType.getDescription());
+//			descriptor = descriptorFactory.createGeometryDescriptor(
+//					newGeomType, currDescriptor.getName(),
+//					currDescriptor.getMinOccurs(),
+//					currDescriptor.getMaxOccurs(), currDescriptor.isNillable(),
+//					null);
+//    	}
+//    	return descriptors;
+//    	// if geom and the parent crs is null
+//    	// use the nested type's crs
+//    	// also consider polymorphism
+//    	
+//    }
     /**
      * Run the query to get built features from a table based on a foreign key.
      * 

@@ -285,10 +285,31 @@ public class AttributeMapping {
 					actualDescriptor = (AttributeDescriptor) Types
 							.findDescriptor(parentType, attributeName);
 				}
-
-				// check for any type
-				if (Types.equals(actualDescriptor.getType().getName(),
+				
+				if (actualDescriptor == null) {
+					// might be a type cast with targetAttributeNode
+					// find the castType from previous attribute mappings
+					// and override it
+					AttributeType castType = elemToTargetNodeType
+							.get(currStepDescriptor.getName());
+					
+					if (castType != null && castType instanceof ComplexType) {
+						parentType = (ComplexType) castType;
+						if (null == attributeName.getNamespaceURI()) {
+							actualDescriptor = (AttributeDescriptor) Types
+									.findDescriptor(parentType,
+											attributeName.getLocalPart());
+						} else {
+							actualDescriptor = (AttributeDescriptor) Types
+									.findDescriptor(parentType, attributeName);
+						}
+					}
+				}
+				
+				if (actualDescriptor != null
+						&& Types.equals(actualDescriptor.getType().getName(),
 						XS.ANYTYPE)) {
+					// check for any type
 					// find the castType from previous attribute mappings
 					// and override it
 					AttributeType castType = elemToTargetNodeType
@@ -354,35 +375,35 @@ public class AttributeMapping {
 										nillable, null);
 					}
 				}
+				
+			}
+			if (currStepDescriptor == null) {
 
-				if (currStepDescriptor == null) {
-
-					if (isLastStep) {
-						// reached the leaf
-						throw new IllegalArgumentException(currStep
-								+ " is not a valid location path for type "
-								+ _parentType.getName());
-					}
-					StringBuffer parentAtts = new StringBuffer();
-					Collection properties = parentType.getDescriptors();
-					for (Iterator it = properties.iterator(); it.hasNext();) {
-						PropertyDescriptor desc = (PropertyDescriptor) it
-								.next();
-						Name name = desc.getName();
-						parentAtts.append(name.getNamespaceURI());
-						parentAtts.append("#");
-						parentAtts.append(name.getLocalPart());
-						if (it.hasNext()) {
-							parentAtts.append(", ");
-						}
-					}
+				if (isLastStep) {
+					// reached the leaf
 					throw new IllegalArgumentException(currStep
 							+ " is not a valid location path for type "
-							+ _parentType.getName() + ". " + currStep + " ns: "
-							+ currStep.getName().getNamespaceURI() + ", "
-							+ _parentType.getName().getLocalPart()
-							+ " properties: " + parentAtts);
+							+ _parentType.getName());
 				}
+				StringBuffer parentAtts = new StringBuffer();
+				Collection properties = parentType.getDescriptors();
+				for (Iterator it = properties.iterator(); it.hasNext();) {
+					PropertyDescriptor desc = (PropertyDescriptor) it
+							.next();
+					Name name = desc.getName();
+					parentAtts.append(name.getNamespaceURI());
+					parentAtts.append("#");
+					parentAtts.append(name.getLocalPart());
+					if (it.hasNext()) {
+						parentAtts.append(", ");
+					}
+				}
+				throw new IllegalArgumentException(currStep
+						+ " is not a valid location path for type "
+						+ _parentType.getName() + ". " + currStep + " ns: "
+						+ currStep.getName().getNamespaceURI() + ", "
+						+ _parentType.getName().getLocalPart()
+						+ " properties: " + parentAtts);
 			}
 
 			descriptors.add(currStepDescriptor);

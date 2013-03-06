@@ -20,8 +20,13 @@ package org.geotools.feature;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Iterator;
+import java.util.List;
 
+import org.geotools.data.complex.AttributeMapping;
+import org.geotools.data.complex.DataAccessMappingFeatureIterator;
 import org.geotools.data.complex.IMappingFeatureIterator;
+import org.geotools.data.joining.XlinkSourceIterator;
+import org.geotools.data.joining.JoiningNestedAttributeMapping;
 import org.geotools.feature.type.GeometryDescriptorImpl;
 import org.geotools.feature.type.GeometryTypeImpl;
 import org.opengis.feature.Attribute;
@@ -35,6 +40,7 @@ import org.opengis.feature.type.ComplexType;
 import org.opengis.feature.type.FeatureType;
 import org.opengis.feature.type.GeometryDescriptor;
 import org.opengis.feature.type.GeometryType;
+import org.opengis.filter.expression.Expression;
 import org.opengis.filter.identity.FeatureId;
 import org.opengis.filter.identity.GmlObjectId;
 import org.opengis.filter.identity.Identifier;
@@ -189,9 +195,9 @@ public class AppSchemaFeatureFactoryImpl extends ValidatingFeatureFactoryImpl {
         }
     }
     
-    public ComplexAttribute createNestedAttribute(AttributeDescriptor descriptor,  String id, 
-    		IMappingFeatureIterator nestedFeatures, Attribute wrapper) {
-    	return new NestedAttributeImpl(descriptor, buildSafeFeatureId(id), nestedFeatures, wrapper);
+    public NestedAttributeImpl createNestedAttribute(AttributeDescriptor descriptor,  String id, 
+    		DataAccessMappingFeatureIterator nestedFeatures, Attribute wrapper, List<Object> foreignIds) {
+    	return new NestedAttributeImpl(descriptor, buildSafeFeatureId(id), nestedFeatures, wrapper, foreignIds);
     }
     
     public Attribute clone(Attribute attribute) {
@@ -217,4 +223,17 @@ public class AppSchemaFeatureFactoryImpl extends ValidatingFeatureFactoryImpl {
     	return attribute;
     }
 
+	public NestedAttributeImpl createNestedAttribute(
+			AttributeDescriptor attDescriptor, String id,
+			XlinkSourceIterator nestedFeatures,
+			Attribute nestedFeaturesElement, List<Object> foreignIds,
+			Expression href) {
+		return new NestedAttributeImpl(attDescriptor, buildSafeFeatureId(id), nestedFeatures, nestedFeaturesElement, foreignIds, href);
+	}
+	
+	public NestedAttributeImpl createNestedAttribute(
+			AttributeDescriptor attDescriptor, String id,
+			Attribute nestedFeaturesElement, List<Object> foreignIds) {
+		return new NestedAttributeImpl(attDescriptor, buildSafeFeatureId(id), nestedFeaturesElement, foreignIds);
+	}
 }

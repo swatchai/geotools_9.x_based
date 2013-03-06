@@ -574,10 +574,16 @@ public class AttributeBuilder {
         // (Collection) value, (FeatureCollectionType) type, id);
         // } else
         if (type instanceof FeatureType) {
+        	if (value == null) {
+        		value = new ArrayList();
+        	}
             return descriptor != null ? attributeFactory.createFeature((Collection) value,
                     descriptor, id) : attributeFactory.createFeature((Collection) value,
                     (FeatureType) type, id);
         } else if (type instanceof ComplexType) {
+        	if (value == null) {
+        		value = new ArrayList();
+        	}
             return createComplexAttribute((Collection) value, (ComplexType) type, descriptor, id);
         } else if (type instanceof GeometryType) {
             return attributeFactory.createGeometryAttribute(value, (GeometryDescriptor) descriptor,
@@ -598,6 +604,9 @@ public class AttributeBuilder {
      */
     public ComplexAttribute createComplexAttribute(Object value, ComplexType type,
             AttributeDescriptor descriptor, String id) {
+    	if (value == null) {
+    		value = new ArrayList();
+    	}
         return descriptor != null ? attributeFactory.createComplexAttribute((Collection) value,
                 descriptor, id) : attributeFactory.createComplexAttribute((Collection) value, type,
                 id);

@@ -1,13 +1,13 @@
 package org.geotools.data.joining;
 
 import java.io.IOException;
-import java.util.Iterator;
 
 import org.geotools.data.complex.DataAccessMappingFeatureIterator;
+import org.geotools.data.complex.IMappingFeatureIterator;
 import org.opengis.feature.Feature;
 import org.opengis.filter.expression.Expression;
 
-public class XlinkSourceIterator implements Iterator<Feature> {
+public class XlinkSourceIterator implements IMappingFeatureIterator {
 	private DataAccessMappingFeatureIterator featureIterator;
 	private Expression nestedSourceExpression;
 	private Object foreignKeyValue;
@@ -45,5 +45,18 @@ public class XlinkSourceIterator implements Iterator<Feature> {
 		// TODO Auto-generated method stub
 		// throw exception
 	}
+	
+	@Override
+	public void close() {
+		featureIterator.close();
+	}
+	
+	@Override
+	public boolean isAvailable() {
+		return featureIterator.isAvailable();
+	}
 
+	public DataAccessMappingFeatureIterator getComplexFeatureIterator() {
+		return featureIterator;
+	}
 }
